@@ -1,0 +1,8 @@
+Django==5.2.8
+opencv-python==4.11.0.86
+Pillow==11.0.0
+picamera2>=0.3.21
+ultralytics>=8.0.0
+torch>=2.0.0
+torchvision>=0.15.0
+requests>=2.31.0
