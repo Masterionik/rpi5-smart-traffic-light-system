@@ -1,6 +1,7 @@
 import cv2
 import threading
 import numpy as np
+import json
 from django.shortcuts import render
 from django.http import StreamingHttpResponse, JsonResponse
 from django.views.decorators.http import condition
@@ -8,7 +9,10 @@ from django.views.decorators.csrf import csrf_exempt
 import logging
 import platform
 from detector.yolo_detector import YOLODetector
+from detector.traffic_controller import TrafficController
+from detector.pedestrian_detector import PedestrianGestureDetector
 from hardware.led_strip import LEDStripController
+from camera.droidcam import DroidCamHandler
 
 logger = logging.getLogger(__name__)
 
@@ -177,9 +181,22 @@ except Exception as exc:
     led_strip = None
     logger.warning(f"LED strip not initialized: {exc}")
 
+# Initialize traffic controller
+if led_strip:
+    traffic_controller = TrafficController(led_strip)
+    traffic_controller.start()
+    logger.info("Traffic controller started")
+else:
+    traffic_controller = None
+    logger.warning("Traffic controller not initialized (LED strip unavailable)")
+
+# Initialize DroidCam handler
+droidcam = DroidCamHandler()
+pedestrian_detector = PedestrianGestureDetector()
+
 
 def gen_frames():
-    """Generator function for streaming video frames with optional YOLO detection"""
+    """Generator function for streaming video frames with YOLO detection and traffic control"""
     global camera
     
     if not camera.is_running:
@@ -199,17 +216,20 @@ def gen_frames():
         
         # Apply YOLO detection if enabled
         if camera.detector_enabled and camera.detector.is_loaded:
-            frame, car_count = camera.detector.detect_cars(frame)
+            # Use enhanced detection with ROI and tracking
+            frame, direction_counts, tracked_objects = camera.detector.detect_vehicles(frame, draw_roi=True)
+            
+            # Update car count
             with camera.lock:
-                camera.car_count = car_count
-            if led_strip:
-                if car_count > 0:
-                    led_strip.set_green()
-                else:
-                    led_strip.set_red()
+                camera.car_count = sum(direction_counts.values())
+            
+            # Update traffic controller with vehicle counts
+            if traffic_controller:
+                traffic_controller.update_vehicle_counts(direction_counts)
         else:
-            if led_strip:
-                led_strip.set_red()
+            # No detection, reset counts
+            if traffic_controller:
+                traffic_controller.update_vehicle_counts({d: 0 for d in TrafficController.DIRECTIONS})
 
         # Stream at up to 1080p (keeps aspect ratio, max width 1920)
         stream_frame = frame
@@ -298,12 +318,230 @@ def detection_stats(request):
 
 
 @csrf_exempt
+def set_traffic_mode(request):
+    """Set traffic control mode (AUTO/MANUAL)"""
+    if not traffic_controller:
+        return JsonResponse({'error': 'Traffic controller not available'}, status=503)
+    
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            mode = data.get('mode', 'AUTO').upper()
+            
+            if mode not in ['AUTO', 'MANUAL']:
+                return JsonResponse({'error': 'Invalid mode'}, status=400)
+            
+            success = traffic_controller.set_mode(mode)
+            return JsonResponse({
+                'success': success,
+                'mode': mode,
+                'message': f'Mode set to {mode}'
+            })
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    
+    return JsonResponse({'error': 'POST request required'}, status=400)
+
+
+@csrf_exempt
+def manual_control_light(request):
+    """Manually control a traffic light (MANUAL mode only)"""
+    if not traffic_controller:
+        return JsonResponse({'error': 'Traffic controller not available'}, status=503)
+    
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            direction = data.get('direction')
+            state = data.get('state', 'RED').upper()
+            
+            if not direction:
+                return JsonResponse({'error': 'Direction required'}, status=400)
+            
+            success = traffic_controller.manual_set_direction(direction, state)
+            
+            if success:
+                return JsonResponse({
+                    'success': True,
+                    'direction': direction,
+                    'state': state
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Manual control requires MANUAL mode'
+                }, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    
+    return JsonResponse({'error': 'POST request required'}, status=400)
+
+
+@csrf_exempt
+def request_pedestrian_crossing(request):
+    """Request pedestrian crossing"""
+    if not traffic_controller:
+        return JsonResponse({'error': 'Traffic controller not available'}, status=503)
+    
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            direction = data.get('direction', 'NORTH')
+            
+            success = traffic_controller.request_pedestrian_crossing(direction)
+            
+            return JsonResponse({
+                'success': success,
+                'direction': direction,
+                'message': 'Request accepted' if success else 'Request in cooldown'
+            })
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    
+    return JsonResponse({'error': 'POST request required'}, status=400)
+
+
+def traffic_status(request):
+    """Get complete traffic control system status"""
+    if not traffic_controller:
+        return JsonResponse({'error': 'Traffic controller not available'}, status=503)
+    
+    status = traffic_controller.get_status()
+    
+    # Add detector stats
+    status['detector'] = {
+        'enabled': camera.detector_enabled,
+        'fps': camera.detector.get_fps(),
+        'direction_counts': camera.detector.get_direction_counts()
+    }
+    
+    return JsonResponse(status)
+
+
+def event_log(request):
+    """Get event log"""
+    if not traffic_controller:
+        return JsonResponse({'error': 'Traffic controller not available'}, status=503)
+    
+    limit = int(request.GET.get('limit', 50))
+    events = traffic_controller.get_event_log(limit=limit)
+    
+    return JsonResponse({'events': events})
+
+
+@csrf_exempt
+def emergency_stop(request):
+    """Emergency stop - set all lights to red"""
+    if not traffic_controller:
+        return JsonResponse({'error': 'Traffic controller not available'}, status=503)
+    
+    if request.method == 'POST':
+        traffic_controller.emergency_stop()
+        return JsonResponse({
+            'success': True,
+            'message': 'Emergency stop activated - all lights RED'
+        })
+    
+    return JsonResponse({'error': 'POST request required'}, status=400)
+
+
+@csrf_exempt
+def start_droidcam(request):
+    """Start DroidCam connection"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            url = data.get('url', 'http://192.168.1.100:4747/mjpegfeed')
+            
+            droidcam.droidcam_url = url
+            success = droidcam.start()
+            
+            if success:
+                # Load pedestrian detector model (shared with main YOLO)
+                pedestrian_detector.load_model()
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': 'DroidCam connected',
+                    'url': url
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'message': droidcam.error_msg
+                }, status=503)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    
+    return JsonResponse({'error': 'POST request required'}, status=400)
+
+
+def droidcam_feed(request):
+    """Stream DroidCam video feed with pedestrian gesture detection"""
+    def gen_droidcam_frames():
+        while droidcam.is_running:
+            frame = droidcam.get_frame()
+            
+            if frame is None:
+                continue
+            
+            # Apply pedestrian gesture detection
+            if pedestrian_detector.is_loaded:
+                gesture_detected, confidence, annotated_frame, direction = pedestrian_detector.detect_gesture(
+                    frame, draw_overlay=True
+                )
+                
+                if gesture_detected and direction and traffic_controller:
+                    # Send crossing request
+                    traffic_controller.request_pedestrian_crossing(direction)
+                    logger.info(f"Pedestrian gesture detected - requesting crossing for {direction}")
+                
+                frame = annotated_frame
+            
+            # Encode frame
+            ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
+            
+            if ret:
+                frame_bytes = buffer.tobytes()
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n'
+                       b'Content-Length: ' + str(len(frame_bytes)).encode() + b'\r\n\r\n' +
+                       frame_bytes + b'\r\n')
+    
+    return StreamingHttpResponse(
+        gen_droidcam_frames(),
+        content_type='multipart/x-mixed-replace; boundary=frame'
+    )
+
+
+def droidcam_status(request):
+    """Get DroidCam status"""
+    status = {
+        'connected': droidcam.is_connected,
+        'running': droidcam.is_running,
+        'url': droidcam.droidcam_url,
+        'error': droidcam.error_msg,
+        'pedestrian_detector': pedestrian_detector.get_status()
+    }
+    
+    return JsonResponse(status)
+
+
+@csrf_exempt
 def shutdown_camera(request):
     """Shutdown camera gracefully"""
     global camera
     camera.release()
+    
+    if traffic_controller:
+        traffic_controller.stop()
+    
     if led_strip:
         led_strip.off()
-    return JsonResponse({'status': 'Camera shutdown'})
+    
+    if droidcam.is_running:
+        droidcam.stop()
+    
+    return JsonResponse({'status': 'System shutdown complete'})
 
 

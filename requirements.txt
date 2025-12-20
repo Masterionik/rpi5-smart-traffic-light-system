@@ -1,8 +1,33 @@
+# Core Framework
 Django==5.2.8
+
+# Computer Vision & AI
 opencv-python==4.11.0.86
-Pillow==11.0.0
-picamera2>=0.3.21
 ultralytics>=8.0.0
 torch>=2.0.0
 torchvision>=0.15.0
+
+# Image Processing
+Pillow==11.0.0
+numpy>=1.24.0
+
+# Camera Support
+picamera2>=0.3.21
+
+# HTTP & Networking
 requests>=2.31.0
+
+# LED Strip Control (Raspberry Pi)
+rpi_ws281x>=5.0.0
+
+# Data Science (for statistics)
+scipy>=1.10.0
+
+# Optional: MQTT Support (for Pi-to-Pi communication)
+# paho-mqtt>=1.6.0
+
+# Development Tools
+# pytest>=7.4.0
+# black>=23.0.0
+# flake8>=6.0.0
+
