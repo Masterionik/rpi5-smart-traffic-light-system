@@ -124,6 +124,7 @@ def test_led_controller():
     """Test LED controller initialization"""
     print_test("Testing LED controller")
     
+    led = None
     try:
         from hardware.led_strip import LEDStripController
         
@@ -142,16 +143,27 @@ def test_led_controller():
             print(f"  ✓ All methods present")
             
             print_test("LED controller", "PASS")
-            return True
+            result = True
         else:
             print(f"  ⚠ LED controller disabled (hardware not available)")
             print_test("LED controller", "SKIP")
-            return True
+            result = True
             
     except Exception as e:
         print(f"  ✗ LED controller error: {e}")
         print_test("LED controller", "FAIL")
-        return False
+        result = False
+    finally:
+        # Clean up LED resources to prevent segfault
+        if led is not None:
+            try:
+                if hasattr(led, 'cleanup'):
+                    led.cleanup()
+                del led
+            except:
+                pass
+    
+    return result
 
 
 def test_yolo_detector():
@@ -190,6 +202,8 @@ def test_traffic_controller():
     """Test traffic controller"""
     print_test("Testing traffic controller")
     
+    led = None
+    controller = None
     try:
         from detector.traffic_controller import TrafficController
         from hardware.led_strip import LEDStripController
@@ -215,12 +229,30 @@ def test_traffic_controller():
         print(f"  ✓ 4 directions configured")
         
         print_test("Traffic controller", "PASS")
-        return True
+        result = True
         
     except Exception as e:
         print(f"  ✗ Traffic controller error: {e}")
         print_test("Traffic controller", "FAIL")
-        return False
+        result = False
+    finally:
+        # Clean up resources to prevent segfault
+        if controller is not None:
+            try:
+                if hasattr(controller, 'stop'):
+                    controller.stop()
+                del controller
+            except:
+                pass
+        if led is not None:
+            try:
+                if hasattr(led, 'cleanup'):
+                    led.cleanup()
+                del led
+            except:
+                pass
+    
+    return result
 
 
 def test_pedestrian_detector():

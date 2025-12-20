@@ -92,6 +92,8 @@ class LEDStripController:
         except Exception as exc:
             logger.error(f"Failed to initialize LED strip: {exc}")
             self.enabled = False
+            # CRITICAL: Set _strip to None to prevent segfault on cleanup
+            self._strip = None
 
     def _get_led_indices(self, direction):
         """
@@ -268,3 +270,29 @@ class LEDStripController:
     def last_color(self):
         """Get last color (legacy method)"""
         return self._direction_states
+    
+    def cleanup(self):
+        """Clean up LED strip resources"""
+        if self._blink_running:
+            self._blink_running = False
+            if self._blink_thread:
+                self._blink_thread.join(timeout=2)
+        
+        if self.enabled and self._strip is not None:
+            try:
+                # Turn off all LEDs
+                self.set_all_off()
+                # No explicit cleanup needed for PixelStrip in most cases
+                # The C library will clean up on del
+            except Exception as e:
+                logger.warning(f"Error during LED cleanup: {e}")
+        
+        self._strip = None
+        self.enabled = False
+    
+    def __del__(self):
+        """Destructor to ensure cleanup on garbage collection"""
+        try:
+            self.cleanup()
+        except:
+            pass

@@ -81,15 +81,39 @@ class VideoCamera:
             
             # Fallback to OpenCV
             logger.info("Attempting OpenCV fallback")
-            self.video = cv2.VideoCapture(0)
             
-            if not self.video.isOpened():
-                logger.error("Cannot open camera with OpenCV")
+            # Try multiple camera indices (0, 1, 2)
+            camera_opened = False
+            for cam_idx in [0, 1, 2]:
+                logger.info(f"Trying camera index {cam_idx}")
+                self.video = cv2.VideoCapture(cam_idx)
+                
+                if self.video.isOpened():
+                    # Test if we can actually read a frame
+                    ret, test_frame = self.video.read()
+                    if ret and test_frame is not None:
+                        logger.info(f"Camera {cam_idx} works - got test frame")
+                        camera_opened = True
+                        break
+                    else:
+                        logger.warning(f"Camera {cam_idx} opened but cannot read frames")
+                        self.video.release()
+                else:
+                    logger.warning(f"Camera {cam_idx} failed to open")
+            
+            if not camera_opened:
+                logger.error("Cannot open any camera with OpenCV (tried indices 0, 1, 2)")
                 return False
             
+            # Configure camera
             self.video.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
             self.video.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
             self.video.set(cv2.CAP_PROP_FPS, 30)
+            
+            # Read initial frame to warm up camera
+            ret, self.frame = self.video.read()
+            if ret:
+                logger.info(f"Initial frame: {self.frame.shape}")
             
             self.is_running = True
             self.thread = threading.Thread(target=self._read_frames)
@@ -141,15 +165,28 @@ class VideoCamera:
     
     def _read_frames(self):
         """Continuously read frames in background thread"""
+        consecutive_failures = 0
+        max_consecutive_failures = 30  # Allow 30 consecutive failures before giving up
+        
         while self.is_running:
             ret, frame = self.video.read()
             
-            if ret:
+            if ret and frame is not None:
                 with self.lock:
                     self.frame = frame
+                consecutive_failures = 0  # Reset counter on success
             else:
-                logger.warning("Failed to read frame from camera")
-                break
+                consecutive_failures += 1
+                if consecutive_failures == 1:  # Log only first failure
+                    logger.warning(f"Failed to read frame from camera")
+                
+                if consecutive_failures >= max_consecutive_failures:
+                    logger.error(f"Camera failed {max_consecutive_failures} times consecutively, stopping")
+                    break
+                    
+                # Wait a bit before retrying
+                import time
+                time.sleep(0.1)
     
     def get_frame(self):
         """Get the latest frame"""
