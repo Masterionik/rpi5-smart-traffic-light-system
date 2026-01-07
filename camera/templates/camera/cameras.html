@@ -1,0 +1,285 @@
+{% extends 'camera/base.html' %}
+
+{% block title %}Camera Feeds - Smart Traffic Light System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-video"></i> Camera Feeds</h1>
+    <p>Manage and monitor all camera sources</p>
+</div>
+
+<!-- Camera Grid -->
+<div class="grid-2" style="margin-bottom: 25px;">
+    <!-- Primary Camera -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fas fa-camera"></i>
+                Primary Camera (RPi Camera Module 3)
+            </div>
+            <span class="badge badge-success" id="primaryCameraBadge">
+                <i class="fas fa-circle"></i> Live
+            </span>
+        </div>
+        <div class="video-container" style="min-height: 400px;">
+            <div class="video-label">
+                <i class="fas fa-car"></i> Vehicle Detection
+            </div>
+            <img id="mainCamera" src="{% url 'camera:video_feed' %}" alt="Primary Camera"
+                 style="width: 100%; height: auto;"
+                 onerror="this.style.display='none'; document.getElementById('primaryPlaceholder').style.display='flex';"
+                 onload="this.style.display='block'; document.getElementById('primaryPlaceholder').style.display='none';">
+            <div id="primaryPlaceholder" style="display: none; flex-direction: column; align-items: center; color: var(--text-secondary);">
+                <i class="fas fa-video-slash" style="font-size: 64px; margin-bottom: 20px;"></i>
+                <p>Camera not available</p>
+                <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 15px;">
+                    <i class="fas fa-sync"></i> Retry
+                </button>
+            </div>
+        </div>
+        <div style="margin-top: 15px; padding: 15px; background: var(--bg-input); border-radius: 12px;">
+            <h4 style="margin-bottom: 10px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">Camera Info</h4>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 13px;">
+                <div><span style="color: var(--text-secondary);">Resolution:</span> <span id="cameraRes">640x480</span></div>
+                <div><span style="color: var(--text-secondary);">FPS:</span> <span id="cameraFPS">30</span></div>
+                <div><span style="color: var(--text-secondary);">Rotation:</span> <span>180°</span></div>
+                <div><span style="color: var(--text-secondary);">Backend:</span> <span id="cameraBackend">picamera2</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DroidCam -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fas fa-mobile-alt"></i>
+                DroidCam (Smartphone Camera)
+            </div>
+            <span class="badge badge-danger" id="droidcamBadge">
+                <i class="fas fa-circle"></i> Disconnected
+            </span>
+        </div>
+        
+        <!-- Connection Form -->
+        <div id="droidcamSetup" style="padding: 20px; background: var(--bg-input); border-radius: 12px; margin-bottom: 15px;">
+            <h4 style="margin-bottom: 15px; color: var(--primary);">
+                <i class="fas fa-plug"></i> Connect DroidCam
+            </h4>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">Stream URL</label>
+                <input type="text" id="droidcamURL" 
+                       placeholder="http://192.168.1.100:4747/mjpegfeed"
+                       value="http://192.168.1.100:4747/mjpegfeed">
+            </div>
+            <button class="btn btn-primary" onclick="startDroidCam()" style="width: 100%;">
+                <i class="fas fa-link"></i> Connect
+            </button>
+            
+            <!-- Setup Instructions -->
+            <div style="margin-top: 20px; padding: 15px; background: var(--bg-card); border-radius: 10px; border-left: 4px solid var(--primary);">
+                <h5 style="margin-bottom: 12px; color: var(--primary);">
+                    <i class="fas fa-info-circle"></i> Setup Instructions
+                </h5>
+                <ol style="margin-left: 20px; font-size: 13px; color: var(--text-secondary); line-height: 1.8;">
+                    <li><strong>Install DroidCam</strong> on your smartphone:
+                        <ul style="margin-left: 20px; margin-top: 5px;">
+                            <li>📱 <strong>Android:</strong> <a href="https://play.google.com/store/apps/details?id=com.dev47apps.droidcam" target="_blank" style="color: var(--primary);">Google Play Store</a></li>
+                            <li>🍎 <strong>iPhone:</strong> <a href="https://apps.apple.com/app/droidcam-webcam-obs-camera/id1510258102" target="_blank" style="color: var(--primary);">App Store</a></li>
+                        </ul>
+                    </li>
+                    <li>Open DroidCam app on your phone</li>
+                    <li>Ensure phone and Raspberry Pi are on the <strong>same WiFi network</strong></li>
+                    <li>Note the <strong>IP address</strong> shown in the app (e.g., 192.168.1.100)</li>
+                    <li>Enter the URL above using format: <code style="background: var(--bg-dark); padding: 2px 6px; border-radius: 4px;">http://IP:4747/mjpegfeed</code></li>
+                    <li>Click <strong>Connect</strong></li>
+                </ol>
+                
+                <div style="margin-top: 15px; padding: 12px; background: rgba(236,201,75,0.1); border-radius: 8px;">
+                    <strong style="color: var(--warning);"><i class="fas fa-lightbulb"></i> Tips:</strong>
+                    <ul style="margin-left: 20px; margin-top: 8px; font-size: 12px;">
+                        <li>Default port is <strong>4747</strong></li>
+                        <li>Use <code>/mjpegfeed</code> for MJPEG stream (recommended)</li>
+                        <li>Alternative: <code>/video</code> or <code>/stream</code></li>
+                        <li>Keep the DroidCam app open on your phone</li>
+                        <li>Disable phone auto-sleep for continuous streaming</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Video Feed (hidden initially) -->
+        <div class="video-container" id="droidcamContainer" style="display: none; min-height: 400px;">
+            <div class="video-label">
+                <i class="fas fa-walking"></i> Pedestrian Detection
+            </div>
+            <img id="droidCamera" src="" alt="DroidCam" style="width: 100%; height: auto;">
+        </div>
+        
+        <div id="droidcamControls" style="display: none; margin-top: 15px;">
+            <button class="btn btn-danger" onclick="stopDroidCam()" style="width: 100%;">
+                <i class="fas fa-stop"></i> Disconnect DroidCam
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Camera Controls -->
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">
+            <i class="fas fa-sliders-h"></i>
+            Detection Controls
+        </div>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 15px;">
+        <button class="btn btn-success" onclick="toggleDetection()" id="detectionBtn">
+            <i class="fas fa-eye"></i> Enable Vehicle Detection
+        </button>
+        <button class="btn btn-info" onclick="togglePedestrianDetection()" id="pedestrianBtn">
+            <i class="fas fa-walking"></i> Enable Pedestrian Detection
+        </button>
+        <button class="btn btn-outline" onclick="refreshCameras()">
+            <i class="fas fa-sync-alt"></i> Refresh All Cameras
+        </button>
+    </div>
+    
+    <div style="margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+        <div style="padding: 15px; background: var(--bg-input); border-radius: 10px;">
+            <div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 5px;">Vehicle Detection</div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span id="vehicleDetectionStatus" class="badge badge-danger">Disabled</span>
+                <span id="vehicleDetectionFPS" style="color: var(--text-secondary); font-size: 13px;">0 FPS</span>
+            </div>
+        </div>
+        <div style="padding: 15px; background: var(--bg-input); border-radius: 10px;">
+            <div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 5px;">Pedestrian Detection</div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span id="pedestrianDetectionStatus" class="badge badge-danger">Disabled</span>
+            </div>
+        </div>
+        <div style="padding: 15px; background: var(--bg-input); border-radius: 10px;">
+            <div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 5px;">DroidCam Status</div>
+            <div id="droidcamStatusText" style="font-size: 13px; color: var(--text-secondary);">Not connected</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let detectionEnabled = false;
+
+    function startDroidCam() {
+        const url = document.getElementById('droidcamURL').value.trim();
+        
+        if (!url) {
+            alert('Please enter a valid DroidCam URL');
+            return;
+        }
+
+        const btn = event.target;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Connecting...';
+
+        fetch('{% url "camera:start_droidcam" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: url })
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-link"></i> Connect';
+
+            if (data.success) {
+                document.getElementById('droidcamSetup').style.display = 'none';
+                document.getElementById('droidcamContainer').style.display = 'flex';
+                document.getElementById('droidcamControls').style.display = 'block';
+                document.getElementById('droidCamera').src = '{% url "camera:droidcam_feed" %}';
+                document.getElementById('droidcamBadge').className = 'badge badge-success';
+                document.getElementById('droidcamBadge').innerHTML = '<i class="fas fa-circle"></i> Connected';
+                document.getElementById('droidcamStatusText').textContent = 'Connected - ' + url;
+            } else {
+                alert('❌ ' + (data.message || 'Failed to connect'));
+            }
+        })
+        .catch(error => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-link"></i> Connect';
+            console.error('Error:', error);
+            alert('❌ Connection failed. Check if the URL is correct and DroidCam app is running.');
+        });
+    }
+
+    function stopDroidCam() {
+        document.getElementById('droidcamSetup').style.display = 'block';
+        document.getElementById('droidcamContainer').style.display = 'none';
+        document.getElementById('droidcamControls').style.display = 'none';
+        document.getElementById('droidCamera').src = '';
+        document.getElementById('droidcamBadge').className = 'badge badge-danger';
+        document.getElementById('droidcamBadge').innerHTML = '<i class="fas fa-circle"></i> Disconnected';
+        document.getElementById('droidcamStatusText').textContent = 'Not connected';
+    }
+
+    function toggleDetection() {
+        fetch('{% url "camera:toggle_detection" %}', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                updateStatus();
+            })
+            .catch(error => console.error('Error:', error));
+    }
+
+    function togglePedestrianDetection() {
+        // Placeholder for pedestrian detection toggle
+        alert('Pedestrian detection is enabled when DroidCam is connected.');
+    }
+
+    function refreshCameras() {
+        document.getElementById('mainCamera').src = '{% url "camera:video_feed" %}?' + Date.now();
+        if (document.getElementById('droidcamContainer').style.display !== 'none') {
+            document.getElementById('droidCamera').src = '{% url "camera:droidcam_feed" %}?' + Date.now();
+        }
+    }
+
+    function updateStatus() {
+        fetch('{% url "camera:traffic_status" %}')
+            .then(response => response.json())
+            .then(data => {
+                // Update detection status
+                if (data.detector) {
+                    detectionEnabled = data.detector.enabled;
+                    const statusBadge = document.getElementById('vehicleDetectionStatus');
+                    const fpsText = document.getElementById('vehicleDetectionFPS');
+                    
+                    if (detectionEnabled) {
+                        statusBadge.className = 'badge badge-success';
+                        statusBadge.textContent = 'Active';
+                        document.getElementById('detectionBtn').innerHTML = '<i class="fas fa-eye-slash"></i> Disable Vehicle Detection';
+                    } else {
+                        statusBadge.className = 'badge badge-danger';
+                        statusBadge.textContent = 'Disabled';
+                        document.getElementById('detectionBtn').innerHTML = '<i class="fas fa-eye"></i> Enable Vehicle Detection';
+                    }
+                    
+                    fpsText.textContent = Math.round(data.detector.fps) + ' FPS';
+                }
+            })
+            .catch(error => console.error('Error:', error));
+
+        // Update camera status
+        fetch('{% url "camera:camera_status" %}')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('cameraBackend').textContent = data.backend || 'unknown';
+            })
+            .catch(() => {});
+    }
+
+    // Initialize
+    window.addEventListener('load', () => {
+        updateStatus();
+        setInterval(updateStatus, 3000);
+    });
+</script>
+{% endblock %}

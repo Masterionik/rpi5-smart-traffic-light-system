@@ -1,6 +1,6 @@
 """
-Intelligent Traffic Light Control Algorithm
-Implements dynamic timing, fair scheduling, and pedestrian priority
+Traffic Light Control Algorithm
+Supports both SIMPLE mode (immediate response) and AUTO mode (intelligent cycling)
 """
 
 import threading
@@ -12,16 +12,47 @@ from datetime import datetime, time as dt_time
 logger = logging.getLogger(__name__)
 
 
+def log_to_database(event_type, message, direction=None, vehicle_count=0, led_state=None, triggered_by='AUTO'):
+    """
+    Log events to Django database
+    Safe to call even when Django isn't fully loaded
+    """
+    try:
+        from detection.models import DetectionEvent, TrafficLightState, VehicleCount
+        
+        # Log detection event
+        DetectionEvent.objects.create(
+            event_type=event_type,
+            direction=direction,
+            message=message,
+            vehicle_count=vehicle_count
+        )
+        
+        # Log LED state change if applicable
+        if led_state:
+            TrafficLightState.objects.create(
+                state=led_state,
+                direction=direction,
+                triggered_by=triggered_by
+            )
+            
+    except Exception as e:
+        logger.debug(f"Could not log to database: {e}")
+
+
 class TrafficController:
     """
-    Intelligent traffic light controller with adaptive timing
+    Traffic light controller with multiple modes
     
-    Features:
-    - Dynamic green time allocation based on vehicle density
-    - Fair scheduling with anti-starvation
-    - Pedestrian priority with gesture detection
-    - Peak hour adaptation
-    - Night mode for low traffic
+    Modes:
+    - SIMPLE: Immediate response to vehicle detection (car → GREEN, no car → RED)
+    - AUTO: Intelligent cycling with dynamic timing
+    - MANUAL: Manual control through API
+    
+    LED Layout (8 LEDs configured as traffic light):
+    - LEDs 0-2: RED section
+    - LEDs 3-4: YELLOW section
+    - LEDs 5-7: GREEN section
     """
     
     # Timing constants (seconds)
@@ -31,6 +62,10 @@ class TrafficController:
     T_RED_YELLOW = 1.5  # Red+Yellow transition
     T_PEDESTRIAN = 15  # Pedestrian green time
     T_PEDESTRIAN_COOLDOWN = 30  # Cooldown between pedestrian requests
+    
+    # Simple mode settings
+    SIMPLE_GREEN_DURATION = 5  # Seconds to show green after detection
+    SIMPLE_YELLOW_DURATION = 2  # Seconds to show yellow before red
     
     # Directions
     DIRECTIONS = ['NORTH', 'EAST', 'SOUTH', 'WEST']
@@ -47,11 +82,17 @@ class TrafficController:
         # Current system state
         self.current_direction = 0  # Index of current green direction
         self.current_state = 'RED'  # Current traffic light state
-        self.mode = 'AUTO'  # AUTO or MANUAL
+        self.mode = 'SIMPLE'  # SIMPLE, AUTO, or MANUAL (default to SIMPLE for immediate response)
         self.running = False
         
         # Vehicle counts per direction
         self.vehicle_counts = {direction: 0 for direction in self.DIRECTIONS}
+        self.previous_counts = {direction: 0 for direction in self.DIRECTIONS}  # Track changes
+        
+        # Simple mode state
+        self._last_detection_time = 0
+        self._simple_state = 'RED'
+        self._transition_lock = threading.Lock()
         
         # Waiting time tracking (cycles waiting)
         self.waiting_cycles = {direction: 0 for direction in self.DIRECTIONS}
@@ -104,14 +145,104 @@ class TrafficController:
     def update_vehicle_counts(self, counts_dict):
         """
         Update vehicle counts from detection system
+        In SIMPLE mode, triggers immediate LED response
         
         Args:
             counts_dict: Dict with keys 'NORTH', 'EAST', 'SOUTH', 'WEST'
         """
         with self.lock:
+            # Store previous counts for comparison
+            old_total = sum(self.vehicle_counts.values())
+            
             for direction in self.DIRECTIONS:
                 if direction in counts_dict:
-                    self.vehicle_counts[direction] = counts_dict[direction]
+                    old_count = self.vehicle_counts[direction]
+                    new_count = counts_dict[direction]
+                    self.vehicle_counts[direction] = new_count
+                    
+                    # Log significant changes to database
+                    if new_count != old_count:
+                        if new_count > old_count:
+                            log_to_database('CAR', f"Vehicle detected in {direction}", direction, new_count, triggered_by='DETECTION')
+                        # Don't log vehicle leaving for less spam
+            
+            new_total = sum(self.vehicle_counts.values())
+        
+        # SIMPLE mode: Immediate LED response based on detection
+        if self.mode == 'SIMPLE':
+            self._handle_simple_mode_detection(old_total, new_total)
+    
+    def _handle_simple_mode_detection(self, old_total, new_total):
+        """
+        Handle LED changes in SIMPLE mode
+        
+        Logic:
+        - Vehicles detected (total > 0): Show GREEN
+        - No vehicles (total = 0): Show RED
+        - Transitions through YELLOW for safety
+        """
+        with self._transition_lock:
+            current_time = time.time()
+            
+            if new_total > 0:
+                # Vehicles detected - should be GREEN
+                if self._simple_state != 'GREEN':
+                    # Transition to green
+                    if self._simple_state == 'RED':
+                        # RED -> RED_YELLOW -> GREEN
+                        logger.info(f"🚗 Vehicle detected ({new_total} total) - switching to GREEN")
+                        self.led_controller.set_state('RED_YELLOW')
+                        self._simple_state = 'RED_YELLOW'
+                        self.current_state = 'RED_YELLOW'
+                        
+                        # Short delay then green
+                        threading.Timer(1.0, self._set_simple_green).start()
+                        
+                    elif self._simple_state == 'YELLOW':
+                        # If transitioning to red, cancel and go back to green
+                        logger.info(f"🚗 Vehicle still detected - staying GREEN")
+                        self.led_controller.set_state('GREEN')
+                        self._simple_state = 'GREEN'
+                        self.current_state = 'GREEN'
+                        
+                self._last_detection_time = current_time
+                log_to_database('LED_CHANGE', f"GREEN - {new_total} vehicles", None, new_total, 'GREEN', 'DETECTION')
+                    
+            else:
+                # No vehicles - should be RED (after timeout)
+                if self._simple_state == 'GREEN':
+                    # Only go to yellow if enough time has passed since last detection
+                    time_since_detection = current_time - self._last_detection_time
+                    if time_since_detection >= self.SIMPLE_GREEN_DURATION:
+                        logger.info("🚫 No vehicles detected - switching to RED")
+                        self.led_controller.set_state('YELLOW')
+                        self._simple_state = 'YELLOW'
+                        self.current_state = 'YELLOW'
+                        
+                        # After yellow, go to red
+                        threading.Timer(self.SIMPLE_YELLOW_DURATION, self._set_simple_red).start()
+                        log_to_database('LED_CHANGE', 'YELLOW - transitioning to RED', None, 0, 'YELLOW', 'AUTO')
+    
+    def _set_simple_green(self):
+        """Set LED to GREEN in simple mode (called after transition)"""
+        with self._transition_lock:
+            if self._simple_state == 'RED_YELLOW':
+                self.led_controller.set_state('GREEN')
+                self._simple_state = 'GREEN'
+                self.current_state = 'GREEN'
+                logger.info("✅ LED set to GREEN")
+                log_to_database('LED_CHANGE', 'GREEN - vehicles allowed', None, 0, 'GREEN', 'DETECTION')
+    
+    def _set_simple_red(self):
+        """Set LED to RED in simple mode (called after yellow transition)"""
+        with self._transition_lock:
+            # Only set red if still in yellow state (vehicle might have appeared)
+            if self._simple_state == 'YELLOW':
+                self.led_controller.set_state('RED')
+                self._simple_state = 'RED'
+                self.current_state = 'RED'
+                logger.info("🛑 LED set to RED")
+                log_to_database('LED_CHANGE', 'RED - stop', None, 0, 'RED', 'AUTO')
     
     def request_pedestrian_crossing(self, direction):
         """
@@ -147,17 +278,28 @@ class TrafficController:
         Set control mode
         
         Args:
-            mode: 'AUTO' or 'MANUAL'
+            mode: 'SIMPLE', 'AUTO', or 'MANUAL'
+            - SIMPLE: Immediate response to detection (default)
+            - AUTO: Intelligent cycling with dynamic timing
+            - MANUAL: Direct API control
         """
-        if mode not in ['AUTO', 'MANUAL']:
+        mode = mode.upper()
+        if mode not in ['SIMPLE', 'AUTO', 'MANUAL']:
             logger.warning(f"Invalid mode: {mode}")
             return False
         
         with self.lock:
+            old_mode = self.mode
             self.mode = mode
+            
+            # Initialize simple mode state when switching to SIMPLE
+            if mode == 'SIMPLE' and old_mode != 'SIMPLE':
+                self._simple_state = 'RED'
+                self.led_controller.set_state('RED')
         
         self._log_event("SYSTEM", f"Mode changed to {mode}")
         logger.info(f"Control mode set to: {mode}")
+        log_to_database('SYSTEM', f"Mode changed from {old_mode} to {mode}", triggered_by='MANUAL')
         return True
     
     def manual_set_direction(self, direction, state):
@@ -334,22 +476,32 @@ class TrafficController:
         logger.info("Control loop started")
         
         # Initialize: All red
-        self.led_controller.set_all_red()
+        self.led_controller.set_state('RED')
+        self._simple_state = 'RED'
+        self.current_state = 'RED'
         logger.info("All LEDs set to RED initially")
-        time.sleep(2)
-        
-        # Start with first direction
-        self.current_direction = 0
-        self.led_controller.set_direction_state(self.current_direction, 'GREEN')
-        logger.info(f"Setting {self.DIRECTIONS[self.current_direction]} to GREEN")
+        time.sleep(1)
         
         while self.running:
-            if self.mode != 'AUTO':
+            # In SIMPLE mode, LED control is handled directly by update_vehicle_counts
+            if self.mode == 'SIMPLE':
+                time.sleep(0.1)  # Just keep the thread alive
+                continue
+                
+            if self.mode == 'MANUAL':
                 logger.debug("Mode is MANUAL, waiting...")
                 time.sleep(1)
                 continue
             
+            # AUTO mode: Intelligent cycling
             try:
+                # Start with first direction green
+                if self.current_state == 'RED':
+                    self.current_direction = 0
+                    self.led_controller.set_state('GREEN')
+                    self.current_state = 'GREEN'
+                    logger.info(f"Setting {self.DIRECTIONS[self.current_direction]} to GREEN")
+                
                 # Calculate green time for current direction
                 green_time = self._calculate_green_time(self.current_direction)
                 
@@ -357,7 +509,7 @@ class TrafficController:
                 
                 # Wait for green time
                 start_time = time.time()
-                while time.time() - start_time < green_time:
+                while time.time() - start_time < green_time and self.mode == 'AUTO':
                     # Check for interrupts (pedestrian priority)
                     if any(self.pedestrian_requests.values()):
                         # Allow current direction to finish minimum time
@@ -366,6 +518,9 @@ class TrafficController:
                             break
                     
                     time.sleep(0.5)
+                
+                if self.mode != 'AUTO':
+                    continue
                 
                 # Update waiting cycles
                 for idx, direction in enumerate(self.DIRECTIONS):
@@ -409,14 +564,23 @@ class TrafficController:
     def get_status(self):
         """Get current system status"""
         with self.lock:
+            # Get current LED state based on mode
+            if self.mode == 'SIMPLE':
+                current_led_state = self._simple_state
+            else:
+                current_led_state = self.current_state
+            
             status = {
                 'mode': self.mode,
+                'current_state': current_led_state,
                 'current_direction': self.DIRECTIONS[self.current_direction],
                 'current_direction_idx': self.current_direction,
                 'vehicle_counts': self.vehicle_counts.copy(),
+                'total_vehicles': sum(self.vehicle_counts.values()),
                 'waiting_cycles': self.waiting_cycles.copy(),
                 'pedestrian_requests': self.pedestrian_requests.copy(),
                 'led_states': self.led_controller.get_all_states(),
+                'led_state': current_led_state,
                 'statistics': self.stats.copy(),
                 'is_peak_hour': self._is_peak_hour(),
                 'is_night_mode': self._is_night_mode()

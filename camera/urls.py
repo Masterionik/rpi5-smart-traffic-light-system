@@ -4,7 +4,11 @@ from . import views
 app_name = 'camera'
 
 urlpatterns = [
+    # Main pages
     path('', views.dashboard, name='dashboard'),
+    path('analytics/', views.analytics, name='analytics'),
+    path('cameras/', views.cameras, name='cameras'),
+    path('settings/', views.settings_page, name='settings_page'),
     
     # Primary camera (Raspberry Pi Camera Module 3)
     path('feed/', views.video_feed, name='video_feed'),
@@ -21,6 +25,9 @@ urlpatterns = [
     path('traffic/manual/', views.manual_control_light, name='manual_control_light'),
     path('traffic/emergency/', views.emergency_stop, name='emergency_stop'),
     path('traffic/events/', views.event_log, name='event_log'),
+    
+    # LED strip control
+    path('led/test/', views.test_led, name='test_led'),
     
     # Pedestrian crossing
     path('pedestrian/request/', views.request_pedestrian_crossing, name='request_pedestrian_crossing'),

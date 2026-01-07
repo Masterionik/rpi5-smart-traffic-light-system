@@ -1,0 +1,359 @@
+{% extends 'camera/base.html' %}
+
+{% block title %}Analytics & Logs - Smart Traffic Light System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-chart-line"></i> Analytics & Logs</h1>
+    <p>Detailed traffic statistics and system event logs</p>
+</div>
+
+<!-- Stats Cards -->
+<div class="grid-4" style="margin-bottom: 25px;">
+    <div class="stat-box">
+        <div class="stat-icon primary">
+            <i class="fas fa-car"></i>
+        </div>
+        <div class="stat-label">Total Vehicles Today</div>
+        <div class="stat-value" id="totalVehiclesToday">0</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-icon success">
+            <i class="fas fa-walking"></i>
+        </div>
+        <div class="stat-label">Pedestrian Requests</div>
+        <div class="stat-value" id="pedestrianRequests">0</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-icon warning">
+            <i class="fas fa-exchange-alt"></i>
+        </div>
+        <div class="stat-label">Light Cycles</div>
+        <div class="stat-value" id="lightCycles">0</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-icon danger">
+            <i class="fas fa-clock"></i>
+        </div>
+        <div class="stat-label">Uptime</div>
+        <div class="stat-value" id="systemUptime">0h</div>
+    </div>
+</div>
+
+<!-- Charts Grid -->
+<div class="grid-2" style="margin-bottom: 25px;">
+    <!-- Vehicle Detection Chart -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fas fa-chart-area"></i>
+                Vehicle Detection Over Time
+            </div>
+        </div>
+        <div style="height: 300px; position: relative;">
+            <canvas id="detectionChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Direction Distribution Chart -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fas fa-chart-pie"></i>
+                Traffic Distribution by Direction
+            </div>
+        </div>
+        <div style="height: 300px; position: relative;">
+            <canvas id="distributionChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- LED States History -->
+<div class="card" style="margin-bottom: 25px;">
+    <div class="card-header">
+        <div class="card-title">
+            <i class="fas fa-lightbulb"></i>
+            LED State Changes
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <span class="badge badge-danger"><i class="fas fa-circle"></i> RED</span>
+            <span class="badge badge-warning"><i class="fas fa-circle"></i> YELLOW</span>
+            <span class="badge badge-success"><i class="fas fa-circle"></i> GREEN</span>
+        </div>
+    </div>
+    <div style="height: 150px; position: relative;">
+        <canvas id="ledChart"></canvas>
+    </div>
+</div>
+
+<!-- Full Event Log -->
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">
+            <i class="fas fa-terminal"></i>
+            System Event Log
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <select id="logFilter" onchange="filterLogs()" style="padding: 8px 12px; width: auto;">
+                <option value="all">All Events</option>
+                <option value="car">Car Detection</option>
+                <option value="pedestrian">Pedestrian</option>
+                <option value="led">LED Changes</option>
+                <option value="system">System</option>
+                <option value="emergency">Emergency</option>
+            </select>
+            <button class="btn btn-outline" onclick="clearLogs()" style="padding: 8px 16px;">
+                <i class="fas fa-trash"></i> Clear
+            </button>
+            <button class="btn btn-primary" onclick="exportLogs()" style="padding: 8px 16px;">
+                <i class="fas fa-download"></i> Export
+            </button>
+        </div>
+    </div>
+    <div class="log-container" id="fullEventLog" style="max-height: 500px;">
+        <div style="text-align: center; padding: 30px; color: var(--text-secondary);">
+            <i class="fas fa-spinner fa-spin"></i> Loading events...
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let detectionChart = null;
+    let distributionChart = null;
+    let ledChart = null;
+    let allEvents = [];
+    let vehicleTotals = { NORTH: 0, EAST: 0, SOUTH: 0, WEST: 0 };
+    let startTime = Date.now();
+    let maxDataPoints = 30;
+
+    // Initialize Charts
+    function initCharts() {
+        // Detection Chart
+        const ctx1 = document.getElementById('detectionChart').getContext('2d');
+        detectionChart = new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: 'NORTH', data: [], borderColor: '#3498db', backgroundColor: 'rgba(52,152,219,0.1)', fill: true, tension: 0.4, borderWidth: 2 },
+                    { label: 'EAST', data: [], borderColor: '#2ecc71', backgroundColor: 'rgba(46,204,113,0.1)', fill: true, tension: 0.4, borderWidth: 2 },
+                    { label: 'SOUTH', data: [], borderColor: '#e74c3c', backgroundColor: 'rgba(231,76,60,0.1)', fill: true, tension: 0.4, borderWidth: 2 },
+                    { label: 'WEST', data: [], borderColor: '#f39c12', backgroundColor: 'rgba(243,156,18,0.1)', fill: true, tension: 0.4, borderWidth: 2 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', labels: { color: '#a0aec0', font: { size: 11 } } }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { color: '#a0aec0' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    x: { ticks: { color: '#a0aec0', maxRotation: 0, maxTicksLimit: 10 }, grid: { display: false } }
+                }
+            }
+        });
+
+        // Distribution Chart
+        const ctx2 = document.getElementById('distributionChart').getContext('2d');
+        distributionChart = new Chart(ctx2, {
+            type: 'doughnut',
+            data: {
+                labels: ['NORTH', 'EAST', 'SOUTH', 'WEST'],
+                datasets: [{
+                    data: [0, 0, 0, 0],
+                    backgroundColor: ['#3498db', '#2ecc71', '#e74c3c', '#f39c12'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right', labels: { color: '#a0aec0', font: { size: 12 } } }
+                }
+            }
+        });
+
+        // LED Chart
+        const ctx3 = document.getElementById('ledChart').getContext('2d');
+        ledChart = new Chart(ctx3, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'LED State',
+                    data: [],
+                    backgroundColor: [],
+                    borderWidth: 0,
+                    barThickness: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { ticks: { color: '#a0aec0', font: { size: 10 } }, grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    // Update data from server
+    function updateAnalytics() {
+        fetch('{% url "camera:traffic_status" %}')
+            .then(response => response.json())
+            .then(data => {
+                const now = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+                // Update detection chart
+                detectionChart.data.labels.push(now);
+                detectionChart.data.datasets[0].data.push(data.vehicle_counts.NORTH || 0);
+                detectionChart.data.datasets[1].data.push(data.vehicle_counts.EAST || 0);
+                detectionChart.data.datasets[2].data.push(data.vehicle_counts.SOUTH || 0);
+                detectionChart.data.datasets[3].data.push(data.vehicle_counts.WEST || 0);
+
+                // Limit data points
+                while (detectionChart.data.labels.length > maxDataPoints) {
+                    detectionChart.data.labels.shift();
+                    detectionChart.data.datasets.forEach(ds => ds.data.shift());
+                }
+                detectionChart.update('none');
+
+                // Update totals
+                vehicleTotals.NORTH += data.vehicle_counts.NORTH || 0;
+                vehicleTotals.EAST += data.vehicle_counts.EAST || 0;
+                vehicleTotals.SOUTH += data.vehicle_counts.SOUTH || 0;
+                vehicleTotals.WEST += data.vehicle_counts.WEST || 0;
+
+                // Update distribution chart
+                distributionChart.data.datasets[0].data = [
+                    vehicleTotals.NORTH,
+                    vehicleTotals.EAST,
+                    vehicleTotals.SOUTH,
+                    vehicleTotals.WEST
+                ];
+                distributionChart.update('none');
+
+                // Update stat cards
+                const total = vehicleTotals.NORTH + vehicleTotals.EAST + vehicleTotals.SOUTH + vehicleTotals.WEST;
+                document.getElementById('totalVehiclesToday').textContent = total;
+
+                // Update LED chart
+                const ledState = data.led_states.NORTH || 'RED';
+                const colorMap = { 'RED': '#f56565', 'YELLOW': '#ecc94b', 'GREEN': '#48bb78' };
+                ledChart.data.labels.push(now);
+                ledChart.data.datasets[0].data.push(1);
+                ledChart.data.datasets[0].backgroundColor.push(colorMap[ledState] || '#667eea');
+                
+                while (ledChart.data.labels.length > 50) {
+                    ledChart.data.labels.shift();
+                    ledChart.data.datasets[0].data.shift();
+                    ledChart.data.datasets[0].backgroundColor.shift();
+                }
+                ledChart.update('none');
+
+                // Update uptime
+                const uptimeMs = Date.now() - startTime;
+                const hours = Math.floor(uptimeMs / 3600000);
+                const mins = Math.floor((uptimeMs % 3600000) / 60000);
+                document.getElementById('systemUptime').textContent = `${hours}h ${mins}m`;
+            })
+            .catch(error => console.error('Error:', error));
+    }
+
+    // Update event log
+    function updateEventLog() {
+        fetch('{% url "camera:event_log" %}?limit=100')
+            .then(response => response.json())
+            .then(data => {
+                allEvents = data.events || [];
+                
+                // Update stats
+                const pedestrianEvents = allEvents.filter(e => e.type.toLowerCase() === 'pedestrian').length;
+                document.getElementById('pedestrianRequests').textContent = pedestrianEvents;
+                
+                const cycleEvents = allEvents.filter(e => e.type.toLowerCase() === 'transition').length;
+                document.getElementById('lightCycles').textContent = cycleEvents;
+
+                filterLogs();
+            })
+            .catch(error => console.error('Error:', error));
+    }
+
+    // Filter logs
+    function filterLogs() {
+        const filter = document.getElementById('logFilter').value;
+        const container = document.getElementById('fullEventLog');
+        
+        let filteredEvents = allEvents;
+        if (filter !== 'all') {
+            filteredEvents = allEvents.filter(e => e.type.toLowerCase() === filter);
+        }
+
+        if (filteredEvents.length > 0) {
+            container.innerHTML = filteredEvents.reverse().map(event => {
+                const iconClass = getEventIcon(event.type);
+                return `
+                    <div class="log-entry ${event.type.toLowerCase()}">
+                        <div class="log-icon ${event.type.toLowerCase()}">
+                            <i class="fas ${iconClass}"></i>
+                        </div>
+                        <div class="log-content">
+                            <div class="log-time">${event.timestamp}</div>
+                            <div class="log-message">${event.message}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            container.innerHTML = '<div style="text-align: center; padding: 50px; color: var(--text-secondary);"><i class="fas fa-inbox" style="font-size: 48px; margin-bottom: 15px;"></i><p>No events found</p></div>';
+        }
+    }
+
+    function getEventIcon(type) {
+        const icons = {
+            'system': 'fa-cog',
+            'pedestrian': 'fa-walking',
+            'transition': 'fa-exchange-alt',
+            'emergency': 'fa-exclamation-triangle',
+            'car': 'fa-car',
+            'led': 'fa-lightbulb'
+        };
+        return icons[type.toLowerCase()] || 'fa-info-circle';
+    }
+
+    function clearLogs() {
+        if (confirm('Clear all displayed logs?')) {
+            document.getElementById('fullEventLog').innerHTML = '<div style="text-align: center; padding: 50px; color: var(--text-secondary);">Logs cleared</div>';
+        }
+    }
+
+    function exportLogs() {
+        const logText = allEvents.map(e => `[${e.timestamp}] [${e.type}] ${e.message}`).join('\n');
+        const blob = new Blob([logText], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `traffic_logs_${new Date().toISOString().split('T')[0]}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // Initialize
+    window.addEventListener('load', () => {
+        initCharts();
+        updateAnalytics();
+        updateEventLog();
+        
+        setInterval(updateAnalytics, 2000);
+        setInterval(updateEventLog, 5000);
+    });
+</script>
+{% endblock %}

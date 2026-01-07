@@ -24,18 +24,40 @@ except ImportError:
 class LEDStripController:
     """
     LED strip controller supporting both RPi 4 and RPi 5
-    - RPi 5: Uses rpi5_ws2812 (SPI-based)
-    - RPi 4: Uses rpi_ws281x (PWM-based)
-    All 8 LEDs change together for simple traffic light simulation
+    
+    8 LEDs configured as a traffic light:
+    - LEDs 0-2 (first 3): RED section
+    - LEDs 3-4 (middle 2): YELLOW section  
+    - LEDs 5-7 (last 3): GREEN section
+    
+    Traffic light states:
+    - RED: Red section ON, others OFF
+    - YELLOW: Yellow section ON, others OFF
+    - GREEN: Green section ON, others OFF
+    - RED_YELLOW: Red + Yellow sections ON
     """
+
+    # LED segment configuration
+    RED_LEDS = [0, 1, 2]      # First 3 LEDs for RED
+    YELLOW_LEDS = [3, 4]       # Middle 2 LEDs for YELLOW
+    GREEN_LEDS = [5, 6, 7]     # Last 3 LEDs for GREEN
+    
+    # Colors (will be set with brightness applied)
+    COLOR_RED = (255, 0, 0)
+    COLOR_YELLOW = (255, 200, 0)
+    COLOR_GREEN = (0, 255, 0)
+    COLOR_OFF = (0, 0, 0)
 
     def __init__(self, num_pixels=8, pin=18, freq_hz=800000, dma=10, brightness=64, invert=False, channel=0, spi_bus=0, spi_device=0):
         self.num_pixels = num_pixels
         self.enabled = False
         self._strip = None
         self._driver = None
-        self._last_color = (255, 0, 0)
+        self._current_state = 'RED'  # Current traffic light state
         self.brightness = brightness / 255.0 if brightness > 1 else brightness
+        
+        # Store pixel colors for rpi5_ws2812 (it uses set_all_pixels with a list)
+        self._pixel_colors = [(0, 0, 0)] * num_pixels
         
         # For compatibility with traffic controller
         self.leds_per_direction = 2
@@ -52,8 +74,8 @@ class LEDStripController:
                 self._driver = WS2812SpiDriver(spi_bus=spi_bus, spi_device=spi_device, led_count=num_pixels)
                 self._strip = self._driver.get_strip()
                 self.enabled = True
-                self.set_color(self._last_color)
                 logger.info(f"✓ LED strip initialized via SPI (rpi5_ws2812) with {num_pixels} LEDs")
+                logger.info(f"  Layout: RED[0-2], YELLOW[3-4], GREEN[5-7]")
             else:
                 # RPi 4 - Use PWM-based driver
                 from rpi_ws281x import PixelStrip, Color
@@ -68,8 +90,10 @@ class LEDStripController:
                 )
                 self._strip.begin()
                 self.enabled = True
-                self.set_color(self._last_color)
                 logger.info(f"✓ LED strip initialized via PWM (rpi_ws281x) on pin {pin} with {num_pixels} LEDs")
+            
+            # Start with RED state
+            self.set_state('RED')
                 
         except Exception as exc:
             logger.error(f"Failed to initialize LED strip: {exc}")
@@ -79,92 +103,143 @@ class LEDStripController:
             self._strip = None
             self._driver = None
 
-    def set_color(self, rgb):
-        """Set all pixels to the given (r, g, b) tuple."""
+    def _set_pixel(self, index, rgb):
+        """Set a single pixel to a color (stored in buffer, call _show to update)"""
         if not self.enabled or self._strip is None:
-            logger.debug(f"LED set_color called but strip not enabled (enabled={self.enabled}, strip={self._strip})")
             return
-            
-        r, g, b = rgb
         
+        r, g, b = rgb
+        r = int(r * self.brightness)
+        g = int(g * self.brightness)
+        b = int(b * self.brightness)
+        
+        # Store in pixel buffer
+        if 0 <= index < self.num_pixels:
+            self._pixel_colors[index] = (r, g, b)
+
+    def _show(self):
+        """Update the LED strip to show changes"""
+        if not self.enabled or self._strip is None:
+            return
         try:
             if LED_LIBRARY == 'rpi5_ws2812':
-                # rpi5_ws2812 library
                 from rpi5_ws2812.ws2812 import Color as LEDColor
-                color = LEDColor(
-                    int(r * self.brightness),
-                    int(g * self.brightness),
-                    int(b * self.brightness)
-                )
+                # rpi5_ws2812 only supports set_all_pixels - all LEDs same color
+                # Find which color should be shown based on segments
+                r, g, b = 0, 0, 0
+                
+                # Check which segment is active (priority: GREEN > YELLOW > RED)
+                for i in self.GREEN_LEDS:
+                    pr, pg, pb = self._pixel_colors[i]
+                    if pg > 0:  # Green is on
+                        r, g, b = pr, pg, pb
+                        break
+                
+                if g == 0:  # No green, check yellow
+                    for i in self.YELLOW_LEDS:
+                        pr, pg, pb = self._pixel_colors[i]
+                        if pr > 0 and pg > 0:  # Yellow is on
+                            r, g, b = pr, pg, pb
+                            break
+                
+                if r == 0 and g == 0:  # No yellow, check red
+                    for i in self.RED_LEDS:
+                        pr, pg, pb = self._pixel_colors[i]
+                        if pr > 0:  # Red is on
+                            r, g, b = pr, pg, pb
+                            break
+                
+                color = LEDColor(r, g, b)
                 self._strip.set_all_pixels(color)
                 self._strip.show()
             else:
-                # rpi_ws281x library
                 from rpi_ws281x import Color
-                color = Color(
-                    int(r * self.brightness),
-                    int(g * self.brightness),
-                    int(b * self.brightness)
-                )
-                for i in range(self.num_pixels):
-                    self._strip.setPixelColor(i, color)
+                for i, (r, g, b) in enumerate(self._pixel_colors):
+                    self._strip.setPixelColor(i, Color(r, g, b))
                 self._strip.show()
-                
-            self._last_color = rgb
-            logger.debug(f"LED color set to RGB{rgb}")
-            
         except Exception as e:
-            logger.error(f"Error setting LED color: {e}")
+            logger.error(f"Error showing LEDs: {e}")
             import traceback
             logger.error(traceback.format_exc())
 
+    def set_state(self, state):
+        """
+        Set the traffic light state
+        
+        Args:
+            state: 'RED', 'YELLOW', 'GREEN', 'RED_YELLOW', 'OFF'
+        """
+        if not self.enabled:
+            logger.debug(f"LED set_state({state}) called but strip not enabled")
+            return
+        
+        state = str(state).upper()
+        self._current_state = state
+        
+        # Turn off all LEDs first
+        for i in range(self.num_pixels):
+            self._set_pixel(i, self.COLOR_OFF)
+        
+        # Set appropriate segments based on state
+        if state == 'RED':
+            for i in self.RED_LEDS:
+                self._set_pixel(i, self.COLOR_RED)
+                
+        elif state == 'YELLOW':
+            for i in self.YELLOW_LEDS:
+                self._set_pixel(i, self.COLOR_YELLOW)
+                
+        elif state == 'GREEN':
+            for i in self.GREEN_LEDS:
+                self._set_pixel(i, self.COLOR_GREEN)
+                
+        elif state == 'RED_YELLOW':
+            for i in self.RED_LEDS:
+                self._set_pixel(i, self.COLOR_RED)
+            for i in self.YELLOW_LEDS:
+                self._set_pixel(i, self.COLOR_YELLOW)
+                
+        elif state == 'OFF':
+            pass  # Already turned off
+        
+        self._show()
+        logger.info(f"Traffic light set to {state}")
+
     def set_green(self):
-        """Set all LEDs to green"""
-        self.set_color((0, 255, 0))
+        """Set traffic light to GREEN"""
+        self.set_state('GREEN')
 
     def set_red(self):
-        """Set all LEDs to red"""
-        self.set_color((255, 0, 0))
+        """Set traffic light to RED"""
+        self.set_state('RED')
 
     def set_yellow(self):
-        """Set all LEDs to yellow"""
-        self.set_color((255, 255, 0))
+        """Set traffic light to YELLOW"""
+        self.set_state('YELLOW')
 
     def off(self):
         """Turn off all LEDs"""
-        self.set_color((0, 0, 0))
+        self.set_state('OFF')
 
-    def last_color(self):
-        """Get the last color that was set"""
-        return self._last_color
+    def get_state(self):
+        """Get current traffic light state"""
+        return self._current_state
     
     # Traffic controller compatibility methods
     def set_direction_state(self, direction, state):
-        """Set state for a direction - in simple mode, controls ALL LEDs"""
-        state = str(state).upper()
-        
-        color_map = {
-            'RED': (255, 0, 0),
-            'YELLOW': (255, 255, 0),
-            'GREEN': (0, 255, 0),
-            'RED_YELLOW': (255, 165, 0),  # Orange for red+yellow
-            'OFF': (0, 0, 0)
-        }
-        
-        if state in color_map:
-            self.set_color(color_map[state])
-            logger.info(f"LED strip set to {state}")
+        """Set state - in single-camera mode, controls the traffic light"""
+        self.set_state(state)
 
     def set_all_red(self):
-        """Set all LEDs to RED"""
+        """Set traffic light to RED"""
         self.set_red()
 
     def set_all_green(self):
-        """Set all LEDs to GREEN"""
+        """Set traffic light to GREEN"""
         self.set_green()
 
     def set_all_yellow(self):
-        """Set all LEDs to YELLOW"""
+        """Set traffic light to YELLOW"""
         self.set_yellow()
 
     def set_all_off(self):
@@ -172,45 +247,46 @@ class LEDStripController:
         self.off()
 
     def get_direction_state(self, direction):
-        """Get current state - returns based on last color"""
-        if self._last_color == (255, 0, 0):
-            return 'RED'
-        elif self._last_color == (0, 255, 0):
-            return 'GREEN'
-        elif self._last_color == (255, 255, 0):
-            return 'YELLOW'
-        elif self._last_color == (255, 165, 0):
-            return 'RED_YELLOW'
-        else:
-            return 'OFF'
+        """Get current state"""
+        return self._current_state
 
     def get_all_states(self):
-        """Get states of all directions - all same in simple mode"""
-        state = self.get_direction_state(0)
+        """Get states of all directions - all same in single-camera mode"""
         return {
-            'NORTH': state,
-            'EAST': state,
-            'SOUTH': state,
-            'WEST': state
+            'NORTH': self._current_state,
+            'EAST': self._current_state,
+            'SOUTH': self._current_state,
+            'WEST': self._current_state
         }
 
+    def last_color(self):
+        """Get the last color that was set (for backward compatibility)"""
+        color_map = {
+            'RED': self.COLOR_RED,
+            'YELLOW': self.COLOR_YELLOW,
+            'GREEN': self.COLOR_GREEN,
+            'RED_YELLOW': (255, 165, 0),
+            'OFF': self.COLOR_OFF
+        }
+        return color_map.get(self._current_state, self.COLOR_OFF)
+
     def test_sequence(self):
-        """Test LED strip with a color sequence"""
+        """Test LED strip with traffic light sequence"""
         import time
-        logger.info("Running LED test sequence...")
+        logger.info("Running traffic light test sequence...")
         
-        test_colors = [
-            ((255, 0, 0), "RED"),
-            ((255, 255, 0), "YELLOW"),
-            ((0, 255, 0), "GREEN"),
-            ((0, 0, 255), "BLUE"),
-            ((255, 255, 255), "WHITE"),
-            ((0, 0, 0), "OFF")
+        test_states = [
+            ("RED", 1.0),
+            ("RED_YELLOW", 0.5),
+            ("GREEN", 1.0),
+            ("YELLOW", 0.5),
+            ("RED", 1.0),
+            ("OFF", 0.5)
         ]
         
-        for color, name in test_colors:
-            logger.info(f"Testing {name}...")
-            self.set_color(color)
-            time.sleep(0.5)
+        for state, duration in test_states:
+            logger.info(f"Testing {state}...")
+            self.set_state(state)
+            time.sleep(duration)
         
-        logger.info("LED test sequence complete")
+        logger.info("Traffic light test sequence complete")

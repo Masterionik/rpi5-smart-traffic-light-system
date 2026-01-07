@@ -4,7 +4,7 @@
 
 ### Prerequisites
 - Raspberry Pi 5 with Camera Module 3 connected
-- WS2812B LED strip (8 LEDs) connected to GPIO 18
+- WS2812B LED strip (8 LEDs) connected to GPIO 10 (SPI)
 - Python 3.10+
 - All dependencies installed (see below)
 
@@ -12,20 +12,28 @@
 ```bash
 cd /path/to/tf_si
 pip install -r requirements.txt
+pip install rpi5-ws2812  # LED strip library for RPi 5
 ```
 
-### 2. Start the System
+### 2. Setup Database (First Time Only)
 ```bash
-python manage.py runserver 0.0.0.0:8000
+python manage.py makemigrations detection
+python manage.py migrate
 ```
 
-### 3. Open Dashboard
+### 3. Start the System
+```bash
+sudo python manage.py runserver 0.0.0.0:8000
+```
+> Note: `sudo` is required for LED strip control via SPI
+
+### 4. Open Dashboard
 Open browser and navigate to:
 ```
 http://<your-pi-ip>:8000/camera/
 ```
 
-### 4. Enable Vehicle Detection
+### 5. Enable Vehicle Detection
 1. Click "Enable Detection" button in dashboard
 2. Wait 5-10 seconds for YOLO model to load
 3. Vehicle detection will start automatically
@@ -34,27 +42,46 @@ http://<your-pi-ip>:8000/camera/
 
 ## 🎮 Quick Feature Guide
 
-### LED Control (8 LEDs Configuration)
-Your 8 LED strip is automatically configured as:
-- **LEDs 0-1**: NORTH direction traffic light
-- **LEDs 2-3**: EAST direction traffic light  
-- **LEDs 4-5**: SOUTH direction traffic light
-- **LEDs 6-7**: WEST direction traffic light
+### LED Strip Configuration (8 LEDs as Traffic Light)
+Your 8 LED strip is configured as a single traffic light:
+- **LEDs 0-2 (First 3)**: RED section
+- **LEDs 3-4 (Middle 2)**: YELLOW section
+- **LEDs 5-7 (Last 3)**: GREEN section
 
-Each pair shows standard traffic light colors (RED, YELLOW, GREEN).
+This mimics a real traffic light where only one section lights up at a time.
 
 ### Control Modes
 
-#### AUTO Mode (Default)
-- System automatically controls all traffic lights
-- Based on real-time vehicle counts
-- Optimal timing for each direction
-- Just enable detection and let it run!
+#### SIMPLE Mode (Default - Recommended)
+- **Vehicle Detected** → GREEN section lights up (go)
+- **No Vehicle** → RED section lights up (stop)
+- Transitions through YELLOW for safety
+- Instant response to detection!
+
+#### AUTO Mode
+- Traditional cycling traffic light
+- Dynamic timing based on vehicle counts
+- Good for multiple camera setups
 
 #### MANUAL Mode
-1. Click "Switch to MANUAL"
-2. Control each direction individually
-3. Click pedestrian buttons to test crossing requests
+- Direct control through the UI
+- Useful for testing and debugging
+
+### How Detection Works
+1. Camera captures video stream
+2. YOLO detects vehicles in 4 ROI quadrants (NORTH, EAST, SOUTH, WEST)
+3. When any vehicle is detected:
+   - LED strip shows GREEN (go)
+4. When no vehicles detected:
+   - After timeout, LED shows YELLOW then RED
+
+### Database Logging
+All detection events are stored in Django database:
+- Vehicle detections with timestamps
+- LED state changes
+- System events
+
+View them in the Analytics page or Django Admin.
 
 ### Vehicle Detection
 - Automatically counts vehicles in each direction

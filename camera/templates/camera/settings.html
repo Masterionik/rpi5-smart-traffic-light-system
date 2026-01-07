@@ -1,0 +1,517 @@
+{% extends 'camera/base.html' %}
+
+{% block title %}Settings - Smart Traffic Light System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-cog"></i> Settings</h1>
+    <p>Configure system parameters and preferences</p>
+</div>
+
+<div class="grid-2">
+    <!-- Traffic Control Settings -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fas fa-traffic-light"></i>
+                Traffic Control
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">System Mode</label>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-primary" id="autoModeBtn" onclick="setMode('AUTO')">
+                    <i class="fas fa-robot"></i> AUTO
+                </button>
+                <button class="btn btn-outline" id="manualModeBtn" onclick="setMode('MANUAL')">
+                    <i class="fas fa-hand-paper"></i> MANUAL
+                </button>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">
+                Minimum Green Time (seconds)
+            </label>
+            <input type="number" id="minGreenTime" value="10" min="5" max="30">
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">
+                Maximum Green Time (seconds)
+            </label>
+            <input type="number" id="maxGreenTime" value="60" min="20" max="120">
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">
+                Yellow Light Duration (seconds)
+            </label>
+            <input type="number" id="yellowTime" value="2" min="1" max="5" step="0.5">
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">
+                Pedestrian Crossing Time (seconds)
+            </label>
+            <input type="number" id="pedestrianTime" value="15" min="10" max="30">
+        </div>
+
+        <button class="btn btn-primary" onclick="saveTrafficSettings()">
+            <i class="fas fa-save"></i> Save Traffic Settings
+        </button>
+    </div>
+
+    <!-- Camera Settings -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fas fa-camera"></i>
+                Camera Settings
+            </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">
+                Camera Rotation
+            </label>
+            <select id="cameraRotation">
+                <option value="0">0° (Normal)</option>
+                <option value="90">90° (Clockwise)</option>
+                <option value="180" selected>180° (Upside Down)</option>
+                <option value="270">270° (Counter-clockwise)</option>
+            </select>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">
+                Resolution
+            </label>
+            <select id="cameraResolution">
+                <option value="640x480" selected>640x480 (VGA)</option>
+                <option value="1280x720">1280x720 (720p HD)</option>
+                <option value="1920x1080">1920x1080 (1080p Full HD)</option>
+            </select>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">
+                JPEG Quality (for streaming)
+            </label>
+            <input type="range" id="jpegQuality" min="30" max="100" value="80" style="width: 100%;">
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary);">
+                <span>Low (Fast)</span>
+                <span id="jpegQualityValue">80%</span>
+                <span>High (Slow)</span>
+            </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="saveCameraSettings()">
+            <i class="fas fa-save"></i> Save Camera Settings
+        </button>
+    </div>
+
+    <!-- LED Strip Settings -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fas fa-lightbulb"></i>
+                LED Strip Settings
+            </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">
+                Number of LEDs
+            </label>
+            <input type="number" id="ledCount" value="8" min="1" max="300">
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">
+                Brightness
+            </label>
+            <input type="range" id="ledBrightness" min="10" max="100" value="25" style="width: 100%;">
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary);">
+                <span>Dim</span>
+                <span id="ledBrightnessValue">25%</span>
+                <span>Bright</span>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">
+                Test LED Strip
+            </label>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
+                <button class="btn btn-danger" onclick="testLED('red')" style="flex: 1;">
+                    <i class="fas fa-circle"></i> Red
+                </button>
+                <button class="btn btn-warning" onclick="testLED('yellow')" style="flex: 1;">
+                    <i class="fas fa-circle"></i> Yellow
+                </button>
+                <button class="btn btn-success" onclick="testLED('green')" style="flex: 1;">
+                    <i class="fas fa-circle"></i> Green
+                </button>
+                <button class="btn btn-outline" onclick="testLED('off')" style="flex: 1;">
+                    <i class="fas fa-power-off"></i> Off
+                </button>
+            </div>
+            <button class="btn btn-outline" onclick="testLEDSequence()" style="width: 100%;">
+                <i class="fas fa-sync-alt"></i> Run Test Sequence (R→Y→G→Off)
+            </button>
+        </div>
+
+        <div style="padding: 15px; background: var(--bg-input); border-radius: 10px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                <span style="color: var(--text-secondary); font-size: 13px;">LED Status:</span>
+                <span id="ledStatusBadge" class="badge badge-success">Active</span>
+            </div>
+            <div style="font-size: 12px; color: var(--text-secondary);">
+                Library: <span id="ledLibrary">rpi5_ws2812</span>
+            </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="saveLEDSettings()">
+            <i class="fas fa-save"></i> Save LED Settings
+        </button>
+    </div>
+
+    <!-- Detection Settings -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fas fa-eye"></i>
+                Detection Settings
+            </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">
+                YOLO Model
+            </label>
+            <select id="yoloModel">
+                <option value="yolov8n" selected>YOLOv8 Nano (Fast, Less Accurate)</option>
+                <option value="yolov8s">YOLOv8 Small (Balanced)</option>
+                <option value="yolov8m">YOLOv8 Medium (Slower, More Accurate)</option>
+            </select>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">
+                Confidence Threshold
+            </label>
+            <input type="range" id="confidenceThreshold" min="10" max="90" value="50" style="width: 100%;">
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary);">
+                <span>10% (More Detections)</span>
+                <span id="confidenceValue">50%</span>
+                <span>90% (Fewer, Confident)</span>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" id="drawROI" checked style="width: 20px; height: 20px;">
+                <span style="color: var(--text-secondary); font-size: 13px;">Draw Detection Regions (ROI)</span>
+            </label>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" id="showLabels" checked style="width: 20px; height: 20px;">
+                <span style="color: var(--text-secondary); font-size: 13px;">Show Detection Labels</span>
+            </label>
+        </div>
+
+        <button class="btn btn-primary" onclick="saveDetectionSettings()">
+            <i class="fas fa-save"></i> Save Detection Settings
+        </button>
+    </div>
+</div>
+
+<!-- System Actions -->
+<div class="card" style="margin-top: 25px;">
+    <div class="card-header">
+        <div class="card-title">
+            <i class="fas fa-tools"></i>
+            System Actions
+        </div>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 15px;">
+        <button class="btn btn-info" onclick="restartSystem()">
+            <i class="fas fa-redo"></i> Restart System
+        </button>
+        <button class="btn btn-warning" onclick="resetSettings()">
+            <i class="fas fa-undo"></i> Reset to Defaults
+        </button>
+        <button class="btn btn-danger" onclick="emergencyStop()">
+            <i class="fas fa-exclamation-triangle"></i> Emergency Stop
+        </button>
+        <button class="btn btn-outline" onclick="exportConfig()">
+            <i class="fas fa-download"></i> Export Configuration
+        </button>
+    </div>
+</div>
+
+<!-- System Info -->
+<div class="card" style="margin-top: 25px;">
+    <div class="card-header">
+        <div class="card-title">
+            <i class="fas fa-info-circle"></i>
+            System Information
+        </div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+        <div style="padding: 15px; background: var(--bg-input); border-radius: 10px;">
+            <div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 5px;">Version</div>
+            <div style="font-size: 16px; font-weight: 600;">1.0.0</div>
+        </div>
+        <div style="padding: 15px; background: var(--bg-input); border-radius: 10px;">
+            <div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 5px;">Platform</div>
+            <div style="font-size: 16px; font-weight: 600;">Raspberry Pi 5</div>
+        </div>
+        <div style="padding: 15px; background: var(--bg-input); border-radius: 10px;">
+            <div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 5px;">Python</div>
+            <div style="font-size: 16px; font-weight: 600;">3.11</div>
+        </div>
+        <div style="padding: 15px; background: var(--bg-input); border-radius: 10px;">
+            <div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 5px;">Django</div>
+            <div style="font-size: 16px; font-weight: 600;">4.2</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Slider value updates
+    document.getElementById('jpegQuality').addEventListener('input', function() {
+        document.getElementById('jpegQualityValue').textContent = this.value + '%';
+    });
+
+    document.getElementById('ledBrightness').addEventListener('input', function() {
+        document.getElementById('ledBrightnessValue').textContent = this.value + '%';
+    });
+
+    document.getElementById('confidenceThreshold').addEventListener('input', function() {
+        document.getElementById('confidenceValue').textContent = this.value + '%';
+    });
+
+    function setMode(mode) {
+        fetch('{% url "camera:set_traffic_mode" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode: mode })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateModeButtons(mode);
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    function updateModeButtons(mode) {
+        const autoBtn = document.getElementById('autoModeBtn');
+        const manualBtn = document.getElementById('manualModeBtn');
+        
+        if (mode === 'AUTO') {
+            autoBtn.className = 'btn btn-primary';
+            manualBtn.className = 'btn btn-outline';
+        } else {
+            autoBtn.className = 'btn btn-outline';
+            manualBtn.className = 'btn btn-primary';
+        }
+    }
+
+    function testLED(color) {
+        const brightness = document.getElementById('ledBrightness').value;
+        const statusBadge = document.getElementById('ledStatusBadge');
+        
+        fetch('/camera/led/test/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                color: color,
+                brightness: brightness
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                statusBadge.textContent = color.toUpperCase();
+                statusBadge.className = color === 'off' ? 'badge badge-secondary' : 
+                                        color === 'red' ? 'badge badge-danger' :
+                                        color === 'yellow' ? 'badge badge-warning' : 'badge badge-success';
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('LED test error:', error);
+            alert('Failed to test LED: ' + error);
+        });
+    }
+    
+    function testLEDSequence() {
+        const colors = ['red', 'yellow', 'green', 'off'];
+        let index = 0;
+        const statusBadge = document.getElementById('ledStatusBadge');
+        
+        statusBadge.textContent = 'Running Sequence...';
+        statusBadge.className = 'badge badge-primary';
+        
+        function nextColor() {
+            if (index < colors.length) {
+                testLED(colors[index]);
+                index++;
+                setTimeout(nextColor, 1000); // 1 second per color
+            } else {
+                statusBadge.textContent = 'Sequence Complete';
+            }
+        }
+        
+        nextColor();
+    }
+
+    function saveTrafficSettings() {
+        alert('Traffic settings saved! (Note: This is a demo - settings persistence not yet implemented)');
+    }
+
+    function saveCameraSettings() {
+        alert('Camera settings saved! (Note: This is a demo - settings persistence not yet implemented)');
+    }
+
+    function saveLEDSettings() {
+        const brightness = document.getElementById('ledBrightness').value;
+        const ledCount = document.getElementById('ledCount').value;
+        
+        fetch('/camera/led/test/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                brightness: brightness
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert('LED settings saved! Brightness set to ' + brightness + '%');
+        })
+        .catch(error => {
+            console.error('Error saving LED settings:', error);
+            alert('Error saving LED settings');
+        });
+    }
+    
+    function loadLEDStatus() {
+        fetch('/camera/led/test/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.enabled !== undefined) {
+                    const statusBadge = document.getElementById('ledStatusBadge');
+                    statusBadge.textContent = data.enabled ? 'Active' : 'Inactive';
+                    statusBadge.className = data.enabled ? 'badge badge-success' : 'badge badge-danger';
+                    
+                    if (data.brightness) {
+                        document.getElementById('ledBrightness').value = data.brightness;
+                        document.getElementById('ledBrightnessValue').textContent = data.brightness + '%';
+                    }
+                    if (data.num_pixels) {
+                        document.getElementById('ledCount').value = data.num_pixels;
+                    }
+                    if (data.current_state) {
+                        const library = document.getElementById('ledLibrary');
+                        if (library) library.textContent = 'rpi5_ws2812 - State: ' + data.current_state;
+                    }
+                }
+            })
+            .catch(error => {
+                console.log('LED status check failed (expected if not on RPi)');
+                const statusBadge = document.getElementById('ledStatusBadge');
+                statusBadge.textContent = 'Not Connected';
+                statusBadge.className = 'badge badge-secondary';
+            });
+    }
+    
+    // Load LED status on page load
+    document.addEventListener('DOMContentLoaded', loadLEDStatus);
+
+    function saveDetectionSettings() {
+        alert('Detection settings saved! (Note: This is a demo - settings persistence not yet implemented)');
+    }
+
+    function restartSystem() {
+        if (confirm('Restart the traffic control system?')) {
+            location.reload();
+        }
+    }
+
+    function resetSettings() {
+        if (confirm('Reset all settings to defaults?')) {
+            alert('Settings reset to defaults');
+            location.reload();
+        }
+    }
+
+    function emergencyStop() {
+        if (confirm('⚠️ EMERGENCY STOP - Set all lights to RED?')) {
+            fetch('{% url "camera:emergency_stop" %}', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    alert('🚨 ' + data.message);
+                })
+                .catch(error => console.error('Error:', error));
+        }
+    }
+
+    function exportConfig() {
+        const config = {
+            traffic: {
+                minGreenTime: document.getElementById('minGreenTime').value,
+                maxGreenTime: document.getElementById('maxGreenTime').value,
+                yellowTime: document.getElementById('yellowTime').value,
+                pedestrianTime: document.getElementById('pedestrianTime').value
+            },
+            camera: {
+                rotation: document.getElementById('cameraRotation').value,
+                resolution: document.getElementById('cameraResolution').value,
+                jpegQuality: document.getElementById('jpegQuality').value
+            },
+            led: {
+                count: document.getElementById('ledCount').value,
+                brightness: document.getElementById('ledBrightness').value
+            },
+            detection: {
+                model: document.getElementById('yoloModel').value,
+                confidence: document.getElementById('confidenceThreshold').value,
+                drawROI: document.getElementById('drawROI').checked,
+                showLabels: document.getElementById('showLabels').checked
+            }
+        };
+
+        const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'traffic_config.json';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // Update status on load
+    window.addEventListener('load', () => {
+        fetch('{% url "camera:traffic_status" %}')
+            .then(response => response.json())
+            .then(data => {
+                updateModeButtons(data.mode);
+            })
+            .catch(error => console.error('Error:', error));
+    });
+</script>
+{% endblock %}

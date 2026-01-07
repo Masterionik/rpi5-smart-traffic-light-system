@@ -315,7 +315,22 @@ def video_feed(request):
 
 def dashboard(request):
     """Display web dashboard with video feed"""
-    return render(request, 'camera/dashboard.html')
+    return render(request, 'camera/dashboard.html', {'page': 'dashboard'})
+
+
+def analytics(request):
+    """Display analytics and logs page"""
+    return render(request, 'camera/analytics.html', {'page': 'analytics'})
+
+
+def cameras(request):
+    """Display camera feeds page"""
+    return render(request, 'camera/cameras.html', {'page': 'cameras'})
+
+
+def settings_page(request):
+    """Display settings page"""
+    return render(request, 'camera/settings.html', {'page': 'settings'})
 
 
 def camera_status(request):
@@ -499,6 +514,55 @@ def emergency_stop(request):
         })
     
     return JsonResponse({'error': 'POST request required'}, status=400)
+
+
+@csrf_exempt
+def test_led(request):
+    """Test LED strip functionality"""
+    if not led_strip:
+        return JsonResponse({'error': 'LED strip not available'}, status=503)
+    
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            color = data.get('color', 'off').upper()
+            brightness = data.get('brightness', None)
+            
+            # Set brightness if provided
+            if brightness is not None:
+                try:
+                    led_strip.brightness = int(brightness) / 100.0
+                except (ValueError, TypeError):
+                    pass
+            
+            # Set the color/state
+            valid_colors = ['RED', 'YELLOW', 'GREEN', 'OFF']
+            if color in valid_colors:
+                led_strip.set_state(color)
+                return JsonResponse({
+                    'success': True,
+                    'message': f'LED strip set to {color}',
+                    'color': color,
+                    'enabled': led_strip.enabled
+                })
+            else:
+                return JsonResponse({
+                    'error': f'Invalid color. Use: {valid_colors}'
+                }, status=400)
+                
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            logger.error(f"LED test error: {e}")
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    # GET request - return LED status
+    return JsonResponse({
+        'enabled': led_strip.enabled,
+        'current_state': led_strip._current_state if hasattr(led_strip, '_current_state') else 'UNKNOWN',
+        'num_pixels': led_strip.num_pixels,
+        'brightness': int(led_strip.brightness * 100)
+    })
 
 
 @csrf_exempt

@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'camera',
     'detector',
+    'detection',  # Database models for detection events
 ]
 
 MIDDLEWARE = [

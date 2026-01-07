@@ -66,81 +66,96 @@
         </div>
     </div>
 
-    <!-- Traffic Lights -->
+    <!-- Traffic Light LED Strip -->
     <div class="card">
         <div class="card-header">
             <div class="card-title">
                 <i class="fas fa-traffic-light"></i>
-                Traffic Lights Status
+                LED Traffic Light (8 LEDs)
+            </div>
+            <span class="badge" id="ledStateBadge" style="background: var(--danger);">RED</span>
+        </div>
+        
+        <!-- LED Strip Visual - 8 LEDs: 3 RED, 2 YELLOW, 3 GREEN -->
+        <div style="padding: 20px;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
+                
+                <!-- LED Strip Representation -->
+                <div class="led-strip-container">
+                    <div class="led-strip-label">8-LED Traffic Light Strip</div>
+                    <div class="led-strip">
+                        <!-- RED Section (LEDs 0-2) -->
+                        <div class="led-segment red-segment">
+                            <div class="led" id="led-0"></div>
+                            <div class="led" id="led-1"></div>
+                            <div class="led" id="led-2"></div>
+                            <span class="segment-label">RED</span>
+                        </div>
+                        <!-- YELLOW Section (LEDs 3-4) -->
+                        <div class="led-segment yellow-segment">
+                            <div class="led" id="led-3"></div>
+                            <div class="led" id="led-4"></div>
+                            <span class="segment-label">YELLOW</span>
+                        </div>
+                        <!-- GREEN Section (LEDs 5-7) -->
+                        <div class="led-segment green-segment">
+                            <div class="led" id="led-5"></div>
+                            <div class="led" id="led-6"></div>
+                            <div class="led" id="led-7"></div>
+                            <span class="segment-label">GREEN</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detection Status -->
+                <div style="display: flex; gap: 30px; justify-content: center; flex-wrap: wrap;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 48px; font-weight: 700; color: var(--text-primary);" id="vehicleCountDisplay">0</div>
+                        <div style="color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">Vehicles Detected</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 48px; font-weight: 700;" id="ledStateDisplay">🔴</div>
+                        <div style="color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">Current State</div>
+                    </div>
+                </div>
+
+                <!-- Direction Vehicle Counts -->
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; width: 100%;">
+                    <div class="direction-count">
+                        <i class="fas fa-arrow-up"></i>
+                        <span class="count" id="north-count">0</span>
+                        <span class="label">NORTH</span>
+                    </div>
+                    <div class="direction-count">
+                        <i class="fas fa-arrow-right"></i>
+                        <span class="count" id="east-count">0</span>
+                        <span class="label">EAST</span>
+                    </div>
+                    <div class="direction-count">
+                        <i class="fas fa-arrow-down"></i>
+                        <span class="count" id="south-count">0</span>
+                        <span class="label">SOUTH</span>
+                    </div>
+                    <div class="direction-count">
+                        <i class="fas fa-arrow-left"></i>
+                        <span class="count" id="west-count">0</span>
+                        <span class="label">WEST</span>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="traffic-lights-grid">
-            <div class="traffic-light-group">
-                <div class="traffic-light-title">
-                    <i class="fas fa-arrow-up"></i> NORTH
-                </div>
-                <div class="traffic-light">
-                    <div class="light red" id="north-red"></div>
-                    <div class="light yellow" id="north-yellow"></div>
-                    <div class="light green" id="north-green"></div>
-                </div>
-                <div class="vehicle-count">
-                    <i class="fas fa-car"></i> <span id="north-count">0</span> vehicles
-                </div>
-                <button class="btn btn-warning" onclick="requestPedestrian('NORTH')" style="width: 100%; font-size: 12px;">
-                    <i class="fas fa-walking"></i> Pedestrian
-                </button>
-            </div>
-
-            <div class="traffic-light-group">
-                <div class="traffic-light-title">
-                    <i class="fas fa-arrow-right"></i> EAST
-                </div>
-                <div class="traffic-light">
-                    <div class="light red" id="east-red"></div>
-                    <div class="light yellow" id="east-yellow"></div>
-                    <div class="light green" id="east-green"></div>
-                </div>
-                <div class="vehicle-count">
-                    <i class="fas fa-car"></i> <span id="east-count">0</span> vehicles
-                </div>
-                <button class="btn btn-warning" onclick="requestPedestrian('EAST')" style="width: 100%; font-size: 12px;">
-                    <i class="fas fa-walking"></i> Pedestrian
-                </button>
-            </div>
-
-            <div class="traffic-light-group">
-                <div class="traffic-light-title">
-                    <i class="fas fa-arrow-down"></i> SOUTH
-                </div>
-                <div class="traffic-light">
-                    <div class="light red" id="south-red"></div>
-                    <div class="light yellow" id="south-yellow"></div>
-                    <div class="light green" id="south-green"></div>
-                </div>
-                <div class="vehicle-count">
-                    <i class="fas fa-car"></i> <span id="south-count">0</span> vehicles
-                </div>
-                <button class="btn btn-warning" onclick="requestPedestrian('SOUTH')" style="width: 100%; font-size: 12px;">
-                    <i class="fas fa-walking"></i> Pedestrian
-                </button>
-            </div>
-
-            <div class="traffic-light-group">
-                <div class="traffic-light-title">
-                    <i class="fas fa-arrow-left"></i> WEST
-                </div>
-                <div class="traffic-light">
-                    <div class="light red" id="west-red"></div>
-                    <div class="light yellow" id="west-yellow"></div>
-                    <div class="light green" id="west-green"></div>
-                </div>
-                <div class="vehicle-count">
-                    <i class="fas fa-car"></i> <span id="west-count">0</span> vehicles
-                </div>
-                <button class="btn btn-warning" onclick="requestPedestrian('WEST')" style="width: 100%; font-size: 12px;">
-                    <i class="fas fa-walking"></i> Pedestrian
-                </button>
+        
+        <!-- How It Works -->
+        <div style="padding: 0 20px 20px 20px;">
+            <div style="background: var(--bg-input); border-radius: 12px; padding: 15px;">
+                <h4 style="margin-bottom: 10px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">
+                    <i class="fas fa-info-circle"></i> How It Works
+                </h4>
+                <ul style="margin: 0; padding-left: 20px; color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                    <li><strong style="color: var(--success);">Vehicle Detected</strong> → GREEN section lights up (LEDs 5-7)</li>
+                    <li><strong style="color: var(--warning);">Transitioning</strong> → YELLOW section lights up (LEDs 3-4)</li>
+                    <li><strong style="color: var(--danger);">No Vehicle</strong> → RED section lights up (LEDs 0-2)</li>
+                </ul>
             </div>
         </div>
     </div>
@@ -156,11 +171,32 @@
                 Control Panel
             </div>
         </div>
+        
+        <!-- Mode Selector -->
+        <div style="padding: 15px; background: var(--bg-input); border-radius: 12px; margin-bottom: 15px;">
+            <h4 style="margin-bottom: 12px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">
+                <i class="fas fa-cogs"></i> Control Mode
+            </h4>
+            <div class="mode-selector">
+                <button class="mode-btn active" id="modeSimple" onclick="setMode('SIMPLE')">
+                    <i class="fas fa-bolt"></i>
+                    <span>SIMPLE</span>
+                    <small>Instant Response</small>
+                </button>
+                <button class="mode-btn" id="modeAuto" onclick="setMode('AUTO')">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>AUTO</span>
+                    <small>Intelligent Cycling</small>
+                </button>
+                <button class="mode-btn" id="modeManual" onclick="setMode('MANUAL')">
+                    <i class="fas fa-hand-pointer"></i>
+                    <span>MANUAL</span>
+                    <small>Direct Control</small>
+                </button>
+            </div>
+        </div>
+        
         <div style="display: flex; flex-wrap: wrap; gap: 12px;">
-            <button class="btn btn-primary" onclick="toggleMode()" id="modeBtnContainer">
-                <i class="fas fa-sync-alt"></i>
-                <span id="modeBtn">Switch to MANUAL</span>
-            </button>
             <button class="btn btn-success" onclick="toggleDetection()" id="detectionBtn">
                 <i class="fas fa-eye"></i>
                 Enable Detection
@@ -168,6 +204,10 @@
             <button class="btn btn-danger" onclick="emergencyStop()">
                 <i class="fas fa-exclamation-triangle"></i>
                 Emergency Stop
+            </button>
+            <button class="btn btn-warning" onclick="requestPedestrian('NORTH')">
+                <i class="fas fa-walking"></i>
+                Pedestrian Request
             </button>
         </div>
         
@@ -189,8 +229,8 @@
                     <span id="droidcamStatus" class="badge badge-danger" style="margin-left: 5px;">Disconnected</span>
                 </div>
                 <div>
-                    <span style="color: var(--text-secondary);">Cycle:</span>
-                    <span id="cycleCount" style="font-weight: 600;">0</span>
+                    <span style="color: var(--text-secondary);">DB Events:</span>
+                    <span id="dbEventCount" style="font-weight: 600;">0</span>
                 </div>
             </div>
         </div>
@@ -360,45 +400,105 @@
                     }
                 }
 
-                // Update traffic lights
-                updateTrafficLights(data.led_states);
+                // Update LED strip visualization
+                updateLEDStrip(data.led_state || data.current_state || 'RED');
+                
+                // Update vehicle count display
+                document.getElementById('vehicleCountDisplay').textContent = data.total_vehicles || total;
 
                 // Update chart (limited data points)
                 updateChart(data.vehicle_counts);
 
-                // Update mode button
+                // Update mode selector
                 currentMode = data.mode;
-                document.getElementById('modeBtn').textContent = 
-                    data.mode === 'AUTO' ? 'Switch to MANUAL' : 'Switch to AUTO';
+                updateModeSelector(data.mode);
             })
             .catch(error => console.error('Error fetching traffic status:', error));
     }
 
-    // Update traffic light indicators
-    function updateTrafficLights(ledStates) {
-        const directions = ['NORTH', 'EAST', 'SOUTH', 'WEST'];
+    // Update LED strip visualization (8 LEDs: 3 RED, 2 YELLOW, 3 GREEN)
+    function updateLEDStrip(state) {
+        state = state.toUpperCase();
         
-        directions.forEach(dir => {
-            const state = ledStates[dir] || 'RED';
-            const dirLower = dir.toLowerCase();
-            
-            // Reset all lights
-            ['red', 'yellow', 'green'].forEach(color => {
-                document.getElementById(`${dirLower}-${color}`).classList.remove('active');
-            });
-            
-            // Activate appropriate light(s)
-            if (state === 'RED') {
-                document.getElementById(`${dirLower}-red`).classList.add('active');
-            } else if (state === 'YELLOW') {
-                document.getElementById(`${dirLower}-yellow`).classList.add('active');
-            } else if (state === 'GREEN') {
-                document.getElementById(`${dirLower}-green`).classList.add('active');
-            } else if (state === 'RED_YELLOW') {
-                document.getElementById(`${dirLower}-red`).classList.add('active');
-                document.getElementById(`${dirLower}-yellow`).classList.add('active');
+        // Reset all LEDs
+        for (let i = 0; i < 8; i++) {
+            const led = document.getElementById(`led-${i}`);
+            if (led) {
+                led.classList.remove('red-on', 'yellow-on', 'green-on');
             }
-        });
+        }
+        
+        // Update state badge
+        const badge = document.getElementById('ledStateBadge');
+        const stateDisplay = document.getElementById('ledStateDisplay');
+        
+        if (state === 'RED') {
+            // Light up first 3 LEDs (RED section)
+            for (let i = 0; i <= 2; i++) {
+                document.getElementById(`led-${i}`).classList.add('red-on');
+            }
+            badge.style.background = 'var(--danger)';
+            badge.textContent = 'RED - STOP';
+            stateDisplay.textContent = '🔴';
+        } else if (state === 'YELLOW') {
+            // Light up middle 2 LEDs (YELLOW section)
+            for (let i = 3; i <= 4; i++) {
+                document.getElementById(`led-${i}`).classList.add('yellow-on');
+            }
+            badge.style.background = 'var(--warning)';
+            badge.textContent = 'YELLOW - CAUTION';
+            stateDisplay.textContent = '🟡';
+        } else if (state === 'GREEN') {
+            // Light up last 3 LEDs (GREEN section)
+            for (let i = 5; i <= 7; i++) {
+                document.getElementById(`led-${i}`).classList.add('green-on');
+            }
+            badge.style.background = 'var(--success)';
+            badge.textContent = 'GREEN - GO';
+            stateDisplay.textContent = '🟢';
+        } else if (state === 'RED_YELLOW') {
+            // Light up RED + YELLOW sections
+            for (let i = 0; i <= 2; i++) {
+                document.getElementById(`led-${i}`).classList.add('red-on');
+            }
+            for (let i = 3; i <= 4; i++) {
+                document.getElementById(`led-${i}`).classList.add('yellow-on');
+            }
+            badge.style.background = 'linear-gradient(90deg, var(--danger), var(--warning))';
+            badge.textContent = 'RED+YELLOW - PREPARE';
+            stateDisplay.textContent = '🟠';
+        }
+    }
+
+    // Update mode selector buttons
+    function updateModeSelector(mode) {
+        document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+        
+        if (mode === 'SIMPLE') {
+            document.getElementById('modeSimple').classList.add('active');
+        } else if (mode === 'AUTO') {
+            document.getElementById('modeAuto').classList.add('active');
+        } else if (mode === 'MANUAL') {
+            document.getElementById('modeManual').classList.add('active');
+        }
+    }
+
+    // Set mode
+    function setMode(mode) {
+        fetch('{% url "camera:set_traffic_mode" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode: mode })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                currentMode = mode;
+                updateModeSelector(mode);
+                updateTrafficStatus();
+            }
+        })
+        .catch(error => console.error('Error setting mode:', error));
     }
 
     // Update chart with fixed data points
@@ -459,27 +559,10 @@
             'transition': 'fa-exchange-alt',
             'emergency': 'fa-exclamation-triangle',
             'car': 'fa-car',
-            'led': 'fa-lightbulb'
+            'led': 'fa-lightbulb',
+            'led_change': 'fa-lightbulb'
         };
         return icons[type.toLowerCase()] || 'fa-info-circle';
-    }
-
-    // Control functions
-    function toggleMode() {
-        const newMode = currentMode === 'AUTO' ? 'MANUAL' : 'AUTO';
-        
-        fetch('{% url "camera:set_traffic_mode" %}', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mode: newMode })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                updateTrafficStatus();
-            }
-        })
-        .catch(error => console.error('Error toggling mode:', error));
     }
 
     function toggleDetection() {
@@ -529,550 +612,3 @@
     });
 </script>
 {% endblock %}
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-success {
-            background: #28a745;
-            color: white;
-        }
-
-        .btn-danger {
-            background: #dc3545;
-            color: white;
-        }
-
-        .btn-warning {
-            background: #ffc107;
-            color: #000;
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
-        }
-
-        .event-log {
-            max-height: 300px;
-            overflow-y: auto;
-            background: #0f3460;
-            padding: 15px;
-            border-radius: 10px;
-        }
-
-        .event-item {
-            padding: 10px;
-            margin-bottom: 10px;
-            background: #1a1a2e;
-            border-radius: 5px;
-            border-left: 4px solid #667eea;
-        }
-
-        .event-time {
-            color: #888;
-            font-size: 0.9em;
-        }
-
-        .event-type {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 3px;
-            font-size: 0.8em;
-            margin-left: 10px;
-        }
-
-        .event-type.system { background: #17a2b8; }
-        .event-type.pedestrian { background: #ffc107; color: #000; }
-        .event-type.transition { background: #28a745; }
-        .event-type.emergency { background: #dc3545; }
-
-        .badge {
-            display: inline-block;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 0.9em;
-            font-weight: bold;
-        }
-
-        .badge-success { background: #28a745; color: white; }
-        .badge-danger { background: #dc3545; color: white; }
-        .badge-warning { background: #ffc107; color: #000; }
-        .badge-info { background: #17a2b8; color: white; }
-
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #667eea;
-        }
-
-        .droidcam-setup {
-            background: #0f3460;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-        }
-
-        .droidcam-setup input {
-            width: 100%;
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #555;
-            background: #1a1a2e;
-            color: #eee;
-            margin: 10px 0;
-        }
-
-        @media (max-width: 768px) {
-            .header h1 { font-size: 1.8em; }
-            .video-grid { grid-template-columns: 1fr; }
-            .traffic-lights { grid-template-columns: 1fr; }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🚦 Smart Traffic Light System</h1>
-            <p>Real-time Intelligent Traffic Control | Raspberry Pi 5 & 4</p>
-        </div>
-
-        <!-- System Status -->
-        <div class="grid">
-            <div class="card">
-                <h2>📊 System Status</h2>
-                <div class="stats-grid">
-                    <div class="stat-box">
-                        <div class="stat-label">Mode</div>
-                        <div class="stat-value" id="systemMode">AUTO</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-label">Active Direction</div>
-                        <div class="stat-value" id="activeDirection">NORTH</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-label">Total Vehicles</div>
-                        <div class="stat-value" id="totalVehicles">0</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-label">FPS</div>
-                        <div class="stat-value" id="detectorFPS">0</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>🎛️ Control Panel</h2>
-                <div class="controls">
-                    <button class="btn btn-primary" onclick="toggleMode()">
-                        <span id="modeBtn">Switch to MANUAL</span>
-                    </button>
-                    <button class="btn btn-success" onclick="toggleDetection()" id="detectionBtn">
-                        Enable Detection
-                    </button>
-                    <button class="btn btn-danger" onclick="emergencyStop()">
-                        🚨 EMERGENCY STOP
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Video Feeds -->
-        <div class="video-grid">
-            <div class="card">
-                <h2>📹 Camera Module 3 (Pi 5)</h2>
-                <div class="video-container">
-                    <div class="video-label">Primary Camera</div>
-                    <img id="mainCamera" src="{% url 'camera:video_feed' %}" alt="Main Camera">
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>📱 DroidCam (Smartphone)</h2>
-                <div class="droidcam-setup" id="droidcamSetup">
-                    <input type="text" id="droidcamURL" 
-                           placeholder="http://192.168.1.100:4747/mjpegfeed"
-                           value="http://192.168.1.100:4747/mjpegfeed">
-                    <button class="btn btn-primary" onclick="startDroidCam()">
-                        Connect DroidCam
-                    </button>
-                    <p style="margin-top: 10px; color: #aaa; font-size: 0.9em;">
-                        📱 Install DroidCam app on your smartphone and enter the stream URL above
-                    </p>
-                </div>
-                <div class="video-container" id="droidcamContainer" style="display: none;">
-                    <div class="video-label">Pedestrian Camera</div>
-                    <img id="droidCamera" src="" alt="DroidCam">
-                </div>
-            </div>
-        </div>
-
-        <!-- Traffic Lights & Vehicle Counts -->
-        <div class="grid">
-            <div class="card">
-                <h2>🚦 Traffic Lights Status</h2>
-                <div class="traffic-lights">
-                    <div class="traffic-light-group">
-                        <div class="traffic-light-title">🧭 NORTH</div>
-                        <div class="traffic-light">
-                            <div class="light red" id="north-red"></div>
-                            <div class="light yellow" id="north-yellow"></div>
-                            <div class="light green" id="north-green"></div>
-                        </div>
-                        <div class="vehicle-count">🚗 <span id="north-count">0</span> vehicles</div>
-                        <button class="btn btn-warning" onclick="requestPedestrian('NORTH')">
-                            🚶 Pedestrian
-                        </button>
-                    </div>
-
-                    <div class="traffic-light-group">
-                        <div class="traffic-light-title">➡️ EAST</div>
-                        <div class="traffic-light">
-                            <div class="light red" id="east-red"></div>
-                            <div class="light yellow" id="east-yellow"></div>
-                            <div class="light green" id="east-green"></div>
-                        </div>
-                        <div class="vehicle-count">🚗 <span id="east-count">0</span> vehicles</div>
-                        <button class="btn btn-warning" onclick="requestPedestrian('EAST')">
-                            🚶 Pedestrian
-                        </button>
-                    </div>
-
-                    <div class="traffic-light-group">
-                        <div class="traffic-light-title">⬇️ SOUTH</div>
-                        <div class="traffic-light">
-                            <div class="light red" id="south-red"></div>
-                            <div class="light yellow" id="south-yellow"></div>
-                            <div class="light green" id="south-green"></div>
-                        </div>
-                        <div class="vehicle-count">🚗 <span id="south-count">0</span> vehicles</div>
-                        <button class="btn btn-warning" onclick="requestPedestrian('SOUTH')">
-                            🚶 Pedestrian
-                        </button>
-                    </div>
-
-                    <div class="traffic-light-group">
-                        <div class="traffic-light-title">⬅️ WEST</div>
-                        <div class="traffic-light">
-                            <div class="light red" id="west-red"></div>
-                            <div class="light yellow" id="west-yellow"></div>
-                            <div class="light green" id="west-green"></div>
-                        </div>
-                        <div class="vehicle-count">🚗 <span id="west-count">0</span> vehicles</div>
-                        <button class="btn btn-warning" onclick="requestPedestrian('WEST')">
-                            🚶 Pedestrian
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>📈 Statistics</h2>
-                <canvas id="vehicleChart" height="200"></canvas>
-            </div>
-        </div>
-
-        <!-- Event Log -->
-        <div class="card">
-            <h2>📝 Event Log</h2>
-            <div class="event-log" id="eventLog">
-                <div class="loading">Loading events...</div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        let currentMode = 'AUTO';
-        let detectionEnabled = false;
-        let vehicleChart = null;
-        let vehicleData = {
-            NORTH: [],
-            EAST: [],
-            SOUTH: [],
-            WEST: []
-        };
-
-        // Initialize chart
-        function initChart() {
-            const ctx = document.getElementById('vehicleChart').getContext('2d');
-            vehicleChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [
-                        {
-                            label: 'NORTH',
-                            data: [],
-                            borderColor: '#3498db',
-                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                            tension: 0.4
-                        },
-                        {
-                            label: 'EAST',
-                            data: [],
-                            borderColor: '#2ecc71',
-                            backgroundColor: 'rgba(46, 204, 113, 0.1)',
-                            tension: 0.4
-                        },
-                        {
-                            label: 'SOUTH',
-                            data: [],
-                            borderColor: '#e74c3c',
-                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                            tension: 0.4
-                        },
-                        {
-                            label: 'WEST',
-                            data: [],
-                            borderColor: '#f39c12',
-                            backgroundColor: 'rgba(243, 156, 18, 0.1)',
-                            tension: 0.4
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            labels: { color: '#eee' }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { color: '#eee' },
-                            grid: { color: '#333' }
-                        },
-                        x: {
-                            ticks: { color: '#eee' },
-                            grid: { color: '#333' }
-                        }
-                    }
-                }
-            });
-        }
-
-        // Update traffic status
-        function updateTrafficStatus() {
-            fetch('{% url "camera:traffic_status" %}')
-                .then(response => response.json())
-                .then(data => {
-                    // Update system status
-                    document.getElementById('systemMode').textContent = data.mode;
-                    document.getElementById('activeDirection').textContent = data.current_direction;
-                    
-                    // Update vehicle counts
-                    let total = 0;
-                    const directions = ['NORTH', 'EAST', 'SOUTH', 'WEST'];
-                    directions.forEach(dir => {
-                        const count = data.vehicle_counts[dir] || 0;
-                        total += count;
-                        document.getElementById(`${dir.toLowerCase()}-count`).textContent = count;
-                    });
-                    document.getElementById('totalVehicles').textContent = total;
-
-                    // Update FPS
-                    if (data.detector) {
-                        document.getElementById('detectorFPS').textContent = 
-                            Math.round(data.detector.fps);
-                        detectionEnabled = data.detector.enabled;
-                    }
-
-                    // Update traffic lights
-                    updateTrafficLights(data.led_states);
-
-                    // Update chart
-                    updateChart(data.vehicle_counts);
-
-                    // Update mode button
-                    currentMode = data.mode;
-                    document.getElementById('modeBtn').textContent = 
-                        data.mode === 'AUTO' ? 'Switch to MANUAL' : 'Switch to AUTO';
-                })
-                .catch(error => console.error('Error fetching traffic status:', error));
-        }
-
-        // Update traffic light indicators
-        function updateTrafficLights(ledStates) {
-            const directions = ['NORTH', 'EAST', 'SOUTH', 'WEST'];
-            
-            directions.forEach(dir => {
-                const state = ledStates[dir] || 'RED';
-                const dirLower = dir.toLowerCase();
-                
-                // Reset all lights
-                ['red', 'yellow', 'green'].forEach(color => {
-                    document.getElementById(`${dirLower}-${color}`).classList.remove('active');
-                });
-                
-                // Activate appropriate light(s)
-                if (state === 'RED') {
-                    document.getElementById(`${dirLower}-red`).classList.add('active');
-                } else if (state === 'YELLOW') {
-                    document.getElementById(`${dirLower}-yellow`).classList.add('active');
-                } else if (state === 'GREEN') {
-                    document.getElementById(`${dirLower}-green`).classList.add('active');
-                } else if (state === 'RED_YELLOW') {
-                    document.getElementById(`${dirLower}-red`).classList.add('active');
-                    document.getElementById(`${dirLower}-yellow`).classList.add('active');
-                }
-            });
-        }
-
-        // Update chart
-        function updateChart(vehicleCounts) {
-            if (!vehicleChart) return;
-
-            const now = new Date().toLocaleTimeString();
-            
-            // Add new data point
-            if (vehicleChart.data.labels.length > 20) {
-                vehicleChart.data.labels.shift();
-                vehicleChart.data.datasets.forEach(dataset => dataset.data.shift());
-            }
-            
-            vehicleChart.data.labels.push(now);
-            vehicleChart.data.datasets[0].data.push(vehicleCounts.NORTH || 0);
-            vehicleChart.data.datasets[1].data.push(vehicleCounts.EAST || 0);
-            vehicleChart.data.datasets[2].data.push(vehicleCounts.SOUTH || 0);
-            vehicleChart.data.datasets[3].data.push(vehicleCounts.WEST || 0);
-            
-            vehicleChart.update('none'); // Update without animation for performance
-        }
-
-        // Update event log
-        function updateEventLog() {
-            fetch('{% url "camera:event_log" %}?limit=20')
-                .then(response => response.json())
-                .then(data => {
-                    const eventLog = document.getElementById('eventLog');
-                    eventLog.innerHTML = '';
-                    
-                    if (data.events && data.events.length > 0) {
-                        data.events.reverse().forEach(event => {
-                            const eventItem = document.createElement('div');
-                            eventItem.className = 'event-item';
-                            eventItem.innerHTML = `
-                                <span class="event-time">${event.timestamp}</span>
-                                <span class="event-type ${event.type.toLowerCase()}">${event.type}</span>
-                                <div>${event.message}</div>
-                            `;
-                            eventLog.appendChild(eventItem);
-                        });
-                    } else {
-                        eventLog.innerHTML = '<div class="loading">No events yet</div>';
-                    }
-                })
-                .catch(error => console.error('Error fetching events:', error));
-        }
-
-        // Toggle mode
-        function toggleMode() {
-            const newMode = currentMode === 'AUTO' ? 'MANUAL' : 'AUTO';
-            
-            fetch('{% url "camera:set_traffic_mode" %}', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mode: newMode })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(`Mode changed to ${newMode}`);
-                    updateTrafficStatus();
-                }
-            })
-            .catch(error => console.error('Error toggling mode:', error));
-        }
-
-        // Toggle detection
-        function toggleDetection() {
-            fetch('{% url "camera:toggle_detection" %}', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    alert(data.message);
-                    updateTrafficStatus();
-                })
-                .catch(error => console.error('Error toggling detection:', error));
-        }
-
-        // Emergency stop
-        function emergencyStop() {
-            if (confirm('⚠️ EMERGENCY STOP - Set all lights to RED?')) {
-                fetch('{% url "camera:emergency_stop" %}', { method: 'POST' })
-                    .then(response => response.json())
-                    .then(data => {
-                        alert('🚨 ' + data.message);
-                        updateTrafficStatus();
-                    })
-                    .catch(error => console.error('Error:', error));
-            }
-        }
-
-        // Request pedestrian crossing
-        function requestPedestrian(direction) {
-            fetch('{% url "camera:request_pedestrian_crossing" %}', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ direction: direction })
-            })
-            .then(response => response.json())
-            .then(data => {
-                alert(data.message);
-            })
-            .catch(error => console.error('Error:', error));
-        }
-
-        // Start DroidCam
-        function startDroidCam() {
-            const url = document.getElementById('droidcamURL').value;
-            
-            fetch('{% url "camera:start_droidcam" %}', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: url })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    document.getElementById('droidcamSetup').style.display = 'none';
-                    document.getElementById('droidcamContainer').style.display = 'flex';
-                    document.getElementById('droidCamera').src = '{% url "camera:droidcam_feed" %}';
-                    alert('✅ DroidCam connected!');
-                } else {
-                    alert('❌ ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('❌ Failed to connect DroidCam');
-            });
-        }
-
-        // Initialize
-        window.addEventListener('load', () => {
-            initChart();
-            updateTrafficStatus();
-            updateEventLog();
-            
-            // Update every 2 seconds
-            setInterval(updateTrafficStatus, 2000);
-            
-            // Update events every 5 seconds
-            setInterval(updateEventLog, 5000);
-        });
-    </script>
-</body>
-</html>
