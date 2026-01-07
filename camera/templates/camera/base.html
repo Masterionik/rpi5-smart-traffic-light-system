@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Smart Traffic Light System{% endblock %}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a67d8;
+            --secondary: #764ba2;
+            --bg-dark: #0f0f1a;
+            --bg-card: #1a1a2e;
+            --bg-card-alt: #16213e;
+            --bg-input: #0f3460;
+            --text-primary: #ffffff;
+            --text-secondary: #a0aec0;
+            --success: #48bb78;
+            --warning: #ecc94b;
+            --danger: #f56565;
+            --info: #4299e1;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            width: 280px;
+            background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-card-alt) 100%);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            border-right: 1px solid rgba(255,255,255,0.1);
+            z-index: 1000;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 15px;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            border-radius: 12px;
+        }
+
+        .sidebar-brand i {
+            font-size: 28px;
+        }
+
+        .sidebar-brand h2 {
+            font-size: 16px;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+
+        .nav-section {
+            margin-bottom: 25px;
+        }
+
+        .nav-section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            padding-left: 15px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 15px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+            margin-bottom: 5px;
+        }
+
+        .nav-link:hover {
+            background: rgba(102, 126, 234, 0.15);
+            color: var(--text-primary);
+        }
+
+        .nav-link.active {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .nav-link i {
+            width: 22px;
+            font-size: 18px;
+        }
+
+        .nav-link span {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* System Status Badge */
+        .system-status {
+            margin-top: auto;
+            background: var(--bg-input);
+            padding: 15px;
+            border-radius: 12px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.online { background: var(--success); }
+        .status-dot.offline { background: var(--danger); animation: none; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .status-value {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 30px;
+            min-height: 100vh;
+        }
+
+        .page-header {
+            margin-bottom: 30px;
+        }
+
+        .page-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .page-header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+            transition: transform 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .card-title i {
+            color: var(--primary);
+        }
+
+        /* Grids */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+
+        .grid-auto {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-warning { background: var(--warning); color: #1a1a2e; }
+        .btn-info { background: var(--info); color: white; }
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Video Container */
+        .video-container {
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            min-height: 350px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .video-container img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .video-label {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: rgba(102, 126, 234, 0.95);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 10;
+        }
+
+        /* Stats */
+        .stat-box {
+            background: var(--bg-input);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            font-size: 22px;
+        }
+
+        .stat-icon.primary { background: rgba(102, 126, 234, 0.2); color: var(--primary); }
+        .stat-icon.success { background: rgba(72, 187, 120, 0.2); color: var(--success); }
+        .stat-icon.warning { background: rgba(236, 201, 75, 0.2); color: var(--warning); }
+        .stat-icon.danger { background: rgba(245, 101, 101, 0.2); color: var(--danger); }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* Traffic Lights */
+        .traffic-lights-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .traffic-light-group {
+            background: var(--bg-input);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .traffic-light-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .traffic-light {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+
+        .light {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.2);
+            opacity: 0.25;
+            transition: all 0.3s ease;
+        }
+
+        .light.active {
+            opacity: 1;
+            box-shadow: 0 0 25px currentColor;
+        }
+
+        .light.red { background-color: #ff0000; color: #ff0000; }
+        .light.yellow { background-color: #ffff00; color: #ffff00; }
+        .light.green { background-color: #00ff00; color: #00ff00; }
+
+        .vehicle-count {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--success);
+            margin-bottom: 10px;
+        }
+
+        /* Log Entries */
+        .log-container {
+            max-height: 400px;
+            overflow-y: auto;
+            background: var(--bg-input);
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .log-entry {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px;
+            background: var(--bg-card);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--primary);
+        }
+
+        .log-entry.car { border-left-color: var(--info); }
+        .log-entry.pedestrian { border-left-color: var(--warning); }
+        .log-entry.led { border-left-color: var(--success); }
+        .log-entry.system { border-left-color: var(--primary); }
+        .log-entry.emergency { border-left-color: var(--danger); }
+
+        .log-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .log-icon.car { background: rgba(66, 153, 225, 0.2); color: var(--info); }
+        .log-icon.pedestrian { background: rgba(236, 201, 75, 0.2); color: var(--warning); }
+        .log-icon.led { background: rgba(72, 187, 120, 0.2); color: var(--success); }
+        .log-icon.system { background: rgba(102, 126, 234, 0.2); color: var(--primary); }
+        .log-icon.emergency { background: rgba(245, 101, 101, 0.2); color: var(--danger); }
+
+        .log-content {
+            flex: 1;
+        }
+
+        .log-time {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .log-message {
+            font-size: 13px;
+            color: var(--text-primary);
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-success { background: rgba(72, 187, 120, 0.2); color: var(--success); }
+        .badge-danger { background: rgba(245, 101, 101, 0.2); color: var(--danger); }
+        .badge-warning { background: rgba(236, 201, 75, 0.2); color: var(--warning); }
+        .badge-info { background: rgba(66, 153, 225, 0.2); color: var(--info); }
+
+        /* Form Inputs */
+        input, select {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: 2px solid rgba(255,255,255,0.1);
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: border-color 0.2s ease;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .grid-4 { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 992px) {
+            .sidebar {
+                width: 80px;
+                padding: 15px;
+            }
+            .sidebar-brand h2,
+            .nav-section-title,
+            .nav-link span,
+            .system-status .status-text,
+            .system-status .status-value {
+                display: none;
+            }
+            .sidebar-brand {
+                justify-content: center;
+            }
+            .nav-link {
+                justify-content: center;
+                padding: 14px;
+            }
+            .main-content {
+                margin-left: 80px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+            .traffic-lights-grid { grid-template-columns: 1fr; }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--bg-input);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            <i class="fas fa-traffic-light"></i>
+            <h2>Smart Traffic<br>Control System</h2>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title">Main</div>
+            <a href="{% url 'camera:dashboard' %}" class="nav-link {% if page == 'dashboard' %}active{% endif %}">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="{% url 'camera:analytics' %}" class="nav-link {% if page == 'analytics' %}active{% endif %}">
+                <i class="fas fa-chart-line"></i>
+                <span>Analytics & Logs</span>
+            </a>
+            <a href="{% url 'camera:settings_page' %}" class="nav-link {% if page == 'settings' %}active{% endif %}">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </a>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title">Cameras</div>
+            <a href="{% url 'camera:cameras' %}" class="nav-link {% if page == 'cameras' %}active{% endif %}">
+                <i class="fas fa-video"></i>
+                <span>Camera Feeds</span>
+            </a>
+        </div>
+
+        <div class="system-status">
+            <div class="status-indicator">
+                <div class="status-dot online" id="sidebarStatusDot"></div>
+                <span class="status-text">System Status</span>
+            </div>
+            <div class="status-value" id="sidebarStatusText">Online</div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        // Common utilities
+        function formatTime(date) {
+            return date.toLocaleTimeString('en-US', { hour12: false });
+        }
+
+        function updateSidebarStatus() {
+            fetch('{% url "camera:traffic_status" %}')
+                .then(response => response.json())
+                .then(data => {
+                    const dot = document.getElementById('sidebarStatusDot');
+                    const text = document.getElementById('sidebarStatusText');
+                    dot.className = 'status-dot online';
+                    text.textContent = data.mode + ' Mode';
+                })
+                .catch(error => {
+                    const dot = document.getElementById('sidebarStatusDot');
+                    const text = document.getElementById('sidebarStatusText');
+                    dot.className = 'status-dot offline';
+                    text.textContent = 'Offline';
+                });
+        }
+
+        // Update sidebar status every 5 seconds
+        setInterval(updateSidebarStatus, 5000);
+        updateSidebarStatus();
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

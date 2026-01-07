@@ -31,6 +31,9 @@ class VideoCamera:
         self.picamera2 = None
         self.is_rpi = platform.machine() in ('armv7l', 'armv6l', 'aarch64')
         
+        # Camera rotation (0, 90, 180, 270)
+        self.rotation = 180  # Camera mounted upside down
+        
         # YOLO detector
         self.detector = YOLODetector(model_name='yolov8n.pt')  # nano model for RPi
         self.detector_enabled = False
@@ -142,6 +145,14 @@ class VideoCamera:
                     # Convert RGB to BGR for OpenCV compatibility
                     frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                     
+                    # Apply rotation if needed (180 degrees for upside-down mount)
+                    if self.rotation == 180:
+                        frame_bgr = cv2.rotate(frame_bgr, cv2.ROTATE_180)
+                    elif self.rotation == 90:
+                        frame_bgr = cv2.rotate(frame_bgr, cv2.ROTATE_90_CLOCKWISE)
+                    elif self.rotation == 270:
+                        frame_bgr = cv2.rotate(frame_bgr, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                    
                     request.release()
                     
                     with self.lock:
@@ -172,6 +183,14 @@ class VideoCamera:
             ret, frame = self.video.read()
             
             if ret and frame is not None:
+                # Apply rotation if needed (180 degrees for upside-down mount)
+                if self.rotation == 180:
+                    frame = cv2.rotate(frame, cv2.ROTATE_180)
+                elif self.rotation == 90:
+                    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+                elif self.rotation == 270:
+                    frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                    
                 with self.lock:
                     self.frame = frame
                 consecutive_failures = 0  # Reset counter on success
