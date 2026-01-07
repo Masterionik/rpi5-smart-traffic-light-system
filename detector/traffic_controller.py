@@ -7,18 +7,31 @@ import threading
 import time
 import logging
 from collections import deque
-from datetime import datetime, time as dt_time
+from datetime import datetime, date, time as dt_time
 
 logger = logging.getLogger(__name__)
 
+# Track last vehicle count log time to avoid spam
+_last_vehicle_count_log = 0
+VEHICLE_COUNT_LOG_INTERVAL = 10  # Log every 10 seconds
 
-def log_to_database(event_type, message, direction=None, vehicle_count=0, led_state=None, triggered_by='AUTO'):
+
+def log_to_database(event_type, message, direction=None, vehicle_count=0, led_state=None, triggered_by='AUTO', direction_counts=None):
     """
     Log events to Django database
     Safe to call even when Django isn't fully loaded
+    
+    Args:
+        event_type: Type of event (CAR, PEDESTRIAN, LED_CHANGE, SYSTEM, EMERGENCY)
+        message: Event description
+        direction: Direction (NORTH, EAST, SOUTH, WEST)
+        vehicle_count: Total vehicle count
+        led_state: LED state if changed
+        triggered_by: What triggered the event
+        direction_counts: Dict with counts per direction {'NORTH': 5, 'EAST': 3, ...}
     """
     try:
-        from detection.models import DetectionEvent, TrafficLightState, VehicleCount
+        from detection.models import DetectionEvent, TrafficLightState, VehicleCount, SystemStats
         
         # Log detection event
         DetectionEvent.objects.create(
@@ -35,6 +48,30 @@ def log_to_database(event_type, message, direction=None, vehicle_count=0, led_st
                 direction=direction,
                 triggered_by=triggered_by
             )
+        
+        # Log vehicle counts periodically (not every call)
+        global _last_vehicle_count_log
+        current_time = time.time()
+        if direction_counts and (current_time - _last_vehicle_count_log) >= VEHICLE_COUNT_LOG_INTERVAL:
+            _last_vehicle_count_log = current_time
+            total = sum(direction_counts.values())
+            VehicleCount.objects.create(
+                north_count=direction_counts.get('NORTH', 0),
+                east_count=direction_counts.get('EAST', 0),
+                south_count=direction_counts.get('SOUTH', 0),
+                west_count=direction_counts.get('WEST', 0),
+                total_count=total
+            )
+            
+            # Update daily stats
+            today = date.today()
+            stats, created = SystemStats.objects.get_or_create(date=today)
+            stats.total_vehicles_detected += total
+            if event_type == 'PEDESTRIAN':
+                stats.total_pedestrian_requests += 1
+            if led_state:
+                stats.total_light_cycles += 1
+            stats.save()
             
     except Exception as e:
         logger.debug(f"Could not log to database: {e}")
@@ -254,6 +291,15 @@ class TrafficController:
                         # Don't log vehicle leaving for less spam
             
             new_total = sum(self.vehicle_counts.values())
+            
+            # Log vehicle counts to database periodically
+            log_to_database(
+                'CAR', 
+                f"Vehicle count update: N={self.vehicle_counts['NORTH']} E={self.vehicle_counts['EAST']} S={self.vehicle_counts['SOUTH']} W={self.vehicle_counts['WEST']}", 
+                direction=None, 
+                vehicle_count=new_total,
+                direction_counts=self.vehicle_counts.copy()
+            )
         
         # Skip normal processing if emergency is active
         if self.emergency_active:

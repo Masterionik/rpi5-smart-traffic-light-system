@@ -26,6 +26,12 @@ scipy>=1.10.0
 # Optional: MQTT Support (for Pi-to-Pi communication)
 # paho-mqtt>=1.6.0
 
+# Excel Export Support
+openpyxl>=3.1.0
+
+# NeoPixel LED Support (Alternative to rpi_ws281x)
+# adafruit-circuitpython-neopixel>=6.3.0
+
 # Development Tools
 # pytest>=7.4.0
 # black>=23.0.0
