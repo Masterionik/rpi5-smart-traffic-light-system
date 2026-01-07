@@ -97,17 +97,22 @@ read -p "Choice (1-5): " choice
 case $choice in
     1)
         echo ""
-        echo "🚀 Starting server on port 8000..."
-        echo "   Dashboard: http://$(hostname -I | awk '{print $1}'):8000/camera/"
+        echo "🚀 Starting server on port 8001..."
+        echo "   Dashboard: http://$(hostname -I | awk '{print $1}'):8001/camera/"
         echo ""
-        python3 manage.py runserver 0.0.0.0:8000
+        python3 manage.py runserver 0.0.0.0:8001
         ;;
     2)
         echo ""
         echo "🚀 Starting server with sudo (for GPIO access)..."
-        echo "   Dashboard: http://$(hostname -I | awk '{print $1}'):8000/camera/"
+        echo "   Dashboard: http://$(hostname -I | awk '{print $1}'):8001/camera/"
         echo ""
-        sudo python3 manage.py runserver 0.0.0.0:8000
+        # Use venv's Python with sudo to preserve virtual environment
+        if [ -d "venv" ]; then
+            sudo venv/bin/python manage.py runserver 0.0.0.0:8001
+        else
+            sudo python3 manage.py runserver 0.0.0.0:8001
+        fi
         ;;
     3)
         echo ""

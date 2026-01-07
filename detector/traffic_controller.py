@@ -335,14 +335,17 @@ class TrafficController:
         
         # Initialize: All red
         self.led_controller.set_all_red()
+        logger.info("All LEDs set to RED initially")
         time.sleep(2)
         
         # Start with first direction
         self.current_direction = 0
         self.led_controller.set_direction_state(self.current_direction, 'GREEN')
+        logger.info(f"Setting {self.DIRECTIONS[self.current_direction]} to GREEN")
         
         while self.running:
             if self.mode != 'AUTO':
+                logger.debug("Mode is MANUAL, waiting...")
                 time.sleep(1)
                 continue
             
@@ -350,7 +353,7 @@ class TrafficController:
                 # Calculate green time for current direction
                 green_time = self._calculate_green_time(self.current_direction)
                 
-                logger.info(f"{self.DIRECTIONS[self.current_direction]} green for {green_time:.1f}s")
+                logger.info(f"✅ {self.DIRECTIONS[self.current_direction]} GREEN for {green_time:.1f}s (vehicles: {self.vehicle_counts[self.DIRECTIONS[self.current_direction]]})")
                 
                 # Wait for green time
                 start_time = time.time()
