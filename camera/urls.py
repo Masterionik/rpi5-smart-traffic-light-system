@@ -25,6 +25,11 @@ urlpatterns = [
     path('traffic/manual/', views.manual_control_light, name='manual_control_light'),
     path('traffic/emergency/', views.emergency_stop, name='emergency_stop'),
     path('traffic/events/', views.event_log, name='event_log'),
+    path('traffic/detailed-status/', views.traffic_detailed_status, name='traffic_detailed_status'),
+    
+    # Algorithm settings
+    path('algorithm/settings/', views.get_algorithm_settings, name='get_algorithm_settings'),
+    path('algorithm/update/', views.update_algorithm_settings, name='update_algorithm_settings'),
     
     # LED strip control
     path('led/test/', views.test_led, name='test_led'),

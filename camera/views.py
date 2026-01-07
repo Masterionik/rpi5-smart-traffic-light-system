@@ -497,6 +497,43 @@ def traffic_status(request):
     return JsonResponse(status)
 
 
+def traffic_detailed_status(request):
+    """Get detailed traffic status with waiting times and priority scores"""
+    if not traffic_controller:
+        return JsonResponse({'error': 'Traffic controller not available'}, status=503)
+    
+    detailed = traffic_controller.get_detailed_status()
+    return JsonResponse(detailed)
+
+
+def get_algorithm_settings(request):
+    """Get current algorithm settings"""
+    if not traffic_controller:
+        return JsonResponse({'error': 'Traffic controller not available'}, status=503)
+    
+    settings = traffic_controller.get_algorithm_settings()
+    return JsonResponse({'settings': settings})
+
+
+@csrf_exempt
+def update_algorithm_settings(request):
+    """Update algorithm settings"""
+    if not traffic_controller:
+        return JsonResponse({'error': 'Traffic controller not available'}, status=503)
+    
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST request required'}, status=400)
+    
+    try:
+        data = json.loads(request.body)
+        result = traffic_controller.update_algorithm_settings(data)
+        return JsonResponse(result)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
 def event_log(request):
     """Get event log"""
     if not traffic_controller:

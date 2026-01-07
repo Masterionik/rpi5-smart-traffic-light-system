@@ -330,6 +330,160 @@
     </button>
 </div>
 
+<!-- INTELLIGENT ALGORITHM SETTINGS -->
+<div class="card" style="margin-top: 25px;">
+    <div class="card-header">
+        <div class="card-title">
+            <i class="fas fa-brain"></i>
+            Intelligent Traffic Algorithm
+        </div>
+        <button class="btn btn-outline" onclick="loadAlgorithmSettings()" style="padding: 6px 12px; font-size: 12px;">
+            <i class="fas fa-sync"></i> Refresh
+        </button>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+        <!-- Pedestrian Priority Settings -->
+        <div style="padding: 15px; background: var(--bg-input); border-radius: 10px;">
+            <h4 style="color: var(--warning); margin-bottom: 15px;">
+                <i class="fas fa-walking"></i> Pedestrian Timing (Cars Get Priority)
+            </h4>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">
+                    Pedestrian Green Time (seconds)
+                </label>
+                <input type="number" id="algPedestrianTime" value="12" min="5" max="30">
+                <small style="color: var(--text-secondary);">Shorter = more car priority</small>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">
+                    Minimum Pedestrian Wait (seconds)
+                </label>
+                <input type="number" id="algPedestrianMinWait" value="20" min="5" max="60">
+                <small style="color: var(--text-secondary);">Pedestrians must wait at least this long</small>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">
+                    Maximum Pedestrian Wait (seconds)
+                </label>
+                <input type="number" id="algPedestrianMaxWait" value="120" min="30" max="300">
+                <small style="color: var(--text-secondary);">Force crossing if waited longer</small>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">
+                    Pedestrian Cooldown (seconds)
+                </label>
+                <input type="number" id="algPedestrianCooldown" value="45" min="10" max="120">
+                <small style="color: var(--text-secondary);">Time between pedestrian requests</small>
+            </div>
+        </div>
+
+        <!-- Car Priority Settings -->
+        <div style="padding: 15px; background: var(--bg-input); border-radius: 10px;">
+            <h4 style="color: var(--success); margin-bottom: 15px;">
+                <i class="fas fa-car"></i> Car Priority Settings
+            </h4>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">
+                    Minimum Car Green Time (seconds)
+                </label>
+                <input type="number" id="algCarMinGreen" value="15" min="5" max="30">
+                <small style="color: var(--text-secondary);">Longer = more car priority</small>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">
+                    Green Extension (if cars arriving)
+                </label>
+                <input type="number" id="algCarExtension" value="5" min="1" max="15">
+                <small style="color: var(--text-secondary);">Extend green if cars still coming</small>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">
+                    Waiting Time Bonus (per 10s)
+                </label>
+                <input type="number" id="algCarWaitBonus" value="2" min="0" max="10">
+                <small style="color: var(--text-secondary);">Extra green time for waiting cars</small>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">
+                    Time per Vehicle (seconds)
+                </label>
+                <input type="number" id="algTimePerVehicle" value="3" min="1" max="10" step="0.5">
+                <small style="color: var(--text-secondary);">Green = T_MIN + (cars × this)</small>
+            </div>
+        </div>
+
+        <!-- Priority Lane Settings -->
+        <div style="padding: 15px; background: var(--bg-input); border-radius: 10px;">
+            <h4 style="color: var(--primary); margin-bottom: 15px;">
+                <i class="fas fa-bus"></i> Priority Lane (Bus/Emergency)
+            </h4>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" id="algPriorityLaneEnabled" style="width: 18px; height: 18px;">
+                    <span style="color: var(--text-primary);">Enable Priority Lane</span>
+                </label>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">
+                    Priority Lane Direction
+                </label>
+                <select id="algPriorityDirection" style="width: 100%;">
+                    <option value="NORTH">NORTH</option>
+                    <option value="EAST">EAST</option>
+                    <option value="SOUTH">SOUTH</option>
+                    <option value="WEST">WEST</option>
+                </select>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">
+                    Priority Multiplier
+                </label>
+                <input type="number" id="algPriorityMultiplier" value="1.5" min="1.0" max="3.0" step="0.1">
+                <small style="color: var(--text-secondary);">1.5 = 50% more green time</small>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">
+                    Min Vehicles to Trigger
+                </label>
+                <input type="number" id="algPriorityMinVehicles" value="1" min="1" max="10">
+            </div>
+        </div>
+
+        <!-- Traffic Balancing -->
+        <div style="padding: 15px; background: var(--bg-input); border-radius: 10px;">
+            <h4 style="color: var(--danger); margin-bottom: 15px;">
+                <i class="fas fa-balance-scale"></i> Traffic Balancing
+            </h4>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" id="algBalanceEnabled" checked style="width: 18px; height: 18px;">
+                    <span style="color: var(--text-primary);">Enable Traffic Balancing</span>
+                </label>
+                <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
+                    Prevents one direction from waiting too long
+                </small>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">
+                    Max Wait Cycles
+                </label>
+                <input type="number" id="algMaxWaitCycles" value="3" min="1" max="10">
+                <small style="color: var(--text-secondary);">Force priority after N cycles</small>
+            </div>
+        </div>
+    </div>
+
+    <div style="margin-top: 20px; display: flex; gap: 10px;">
+        <button class="btn btn-primary" onclick="saveAlgorithmSettings()">
+            <i class="fas fa-save"></i> Save Algorithm Settings
+        </button>
+        <button class="btn btn-outline" onclick="resetAlgorithmDefaults()">
+            <i class="fas fa-undo"></i> Reset to Defaults
+        </button>
+    </div>
+</div>
+
 <!-- Zone Configuration -->
 <div class="card" style="margin-top: 25px;">
     <div class="card-header">
@@ -880,7 +1034,124 @@
     // Load zone settings on page load
     document.addEventListener('DOMContentLoaded', function() {
         loadZoneSettings();
+        loadAlgorithmSettings();
     });
+
+    // ========== ALGORITHM SETTINGS ==========
+    
+    function loadAlgorithmSettings() {
+        fetch('{% url "camera:get_algorithm_settings" %}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.settings) {
+                    const s = data.settings;
+                    
+                    // Pedestrian settings
+                    if (s.pedestrian) {
+                        document.getElementById('algPedestrianTime').value = s.pedestrian.T_PEDESTRIAN || 12;
+                        document.getElementById('algPedestrianMinWait').value = s.pedestrian.T_PEDESTRIAN_MIN_WAIT || 20;
+                        document.getElementById('algPedestrianMaxWait').value = s.pedestrian.T_PEDESTRIAN_MAX_WAIT || 120;
+                        document.getElementById('algPedestrianCooldown').value = s.pedestrian.T_PEDESTRIAN_COOLDOWN || 45;
+                    }
+                    
+                    // Car priority settings
+                    if (s.car_priority) {
+                        document.getElementById('algCarMinGreen').value = s.car_priority.T_CAR_MIN_GREEN || 15;
+                        document.getElementById('algCarExtension').value = s.car_priority.T_CAR_EXTENSION || 5;
+                        document.getElementById('algCarWaitBonus').value = s.car_priority.T_CAR_WAITING_BONUS || 2;
+                    }
+                    
+                    if (s.timing) {
+                        document.getElementById('algTimePerVehicle').value = s.timing.T_PER_VEHICLE || 3;
+                    }
+                    
+                    // Priority lane settings
+                    if (s.priority_lane) {
+                        document.getElementById('algPriorityLaneEnabled').checked = s.priority_lane.enabled || false;
+                        document.getElementById('algPriorityDirection').value = s.priority_lane.direction || 'NORTH';
+                        document.getElementById('algPriorityMultiplier').value = s.priority_lane.multiplier || 1.5;
+                        document.getElementById('algPriorityMinVehicles').value = s.priority_lane.min_vehicles || 1;
+                    }
+                    
+                    // Balancing settings
+                    if (s.balancing) {
+                        document.getElementById('algBalanceEnabled').checked = s.balancing.enabled !== false;
+                        document.getElementById('algMaxWaitCycles').value = s.balancing.max_wait_cycles || 3;
+                    }
+                }
+            })
+            .catch(error => console.error('Error loading algorithm settings:', error));
+    }
+    
+    function saveAlgorithmSettings() {
+        const settings = {
+            pedestrian: {
+                T_PEDESTRIAN: parseInt(document.getElementById('algPedestrianTime').value),
+                T_PEDESTRIAN_MIN_WAIT: parseInt(document.getElementById('algPedestrianMinWait').value),
+                T_PEDESTRIAN_MAX_WAIT: parseInt(document.getElementById('algPedestrianMaxWait').value),
+                T_PEDESTRIAN_COOLDOWN: parseInt(document.getElementById('algPedestrianCooldown').value)
+            },
+            car_priority: {
+                T_CAR_MIN_GREEN: parseInt(document.getElementById('algCarMinGreen').value),
+                T_CAR_EXTENSION: parseInt(document.getElementById('algCarExtension').value),
+                T_CAR_WAITING_BONUS: parseInt(document.getElementById('algCarWaitBonus').value)
+            },
+            timing: {
+                T_PER_VEHICLE: parseFloat(document.getElementById('algTimePerVehicle').value)
+            },
+            priority_lane: {
+                enabled: document.getElementById('algPriorityLaneEnabled').checked,
+                direction: document.getElementById('algPriorityDirection').value,
+                multiplier: parseFloat(document.getElementById('algPriorityMultiplier').value),
+                min_vehicles: parseInt(document.getElementById('algPriorityMinVehicles').value)
+            },
+            balancing: {
+                enabled: document.getElementById('algBalanceEnabled').checked,
+                max_wait_cycles: parseInt(document.getElementById('algMaxWaitCycles').value)
+            }
+        };
+        
+        fetch('{% url "camera:update_algorithm_settings" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ Algorithm settings saved!\n\nUpdated: ' + data.updated.join(', '));
+            } else {
+                alert('❌ Error: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ Failed to save settings: ' + error);
+        });
+    }
+    
+    function resetAlgorithmDefaults() {
+        if (!confirm('Reset all algorithm settings to defaults?')) return;
+        
+        // Set default values
+        document.getElementById('algPedestrianTime').value = 12;
+        document.getElementById('algPedestrianMinWait').value = 20;
+        document.getElementById('algPedestrianMaxWait').value = 120;
+        document.getElementById('algPedestrianCooldown').value = 45;
+        document.getElementById('algCarMinGreen').value = 15;
+        document.getElementById('algCarExtension').value = 5;
+        document.getElementById('algCarWaitBonus').value = 2;
+        document.getElementById('algTimePerVehicle').value = 3;
+        document.getElementById('algPriorityLaneEnabled').checked = false;
+        document.getElementById('algPriorityDirection').value = 'NORTH';
+        document.getElementById('algPriorityMultiplier').value = 1.5;
+        document.getElementById('algPriorityMinVehicles').value = 1;
+        document.getElementById('algBalanceEnabled').checked = true;
+        document.getElementById('algMaxWaitCycles').value = 3;
+        
+        // Save the defaults
+        saveAlgorithmSettings();
+    }
 
     // Update status on load
     window.addEventListener('load', () => {
