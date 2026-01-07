@@ -158,9 +158,14 @@
                     <i class="fas fa-power-off"></i> Off
                 </button>
             </div>
-            <button class="btn btn-outline" onclick="testLEDSequence()" style="width: 100%;">
-                <i class="fas fa-sync-alt"></i> Run Test Sequence (R→Y→G→Off)
-            </button>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="testLED('all_on')" style="flex: 1;">
+                    <i class="fas fa-lightbulb"></i> All On (R+Y+G)
+                </button>
+                <button class="btn btn-outline" onclick="testLEDSequence()" style="flex: 1;">
+                    <i class="fas fa-sync-alt"></i> Test Sequence
+                </button>
+            </div>
         </div>
 
         <div style="padding: 15px; background: var(--bg-input); border-radius: 10px; margin-bottom: 20px;">
@@ -343,10 +348,11 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                statusBadge.textContent = color.toUpperCase();
+                statusBadge.textContent = color.toUpperCase().replace('_', ' ');
                 statusBadge.className = color === 'off' ? 'badge badge-secondary' : 
                                         color === 'red' ? 'badge badge-danger' :
-                                        color === 'yellow' ? 'badge badge-warning' : 'badge badge-success';
+                                        color === 'yellow' ? 'badge badge-warning' : 
+                                        color === 'all_on' ? 'badge badge-primary' : 'badge badge-success';
             } else {
                 alert('Error: ' + (data.error || 'Unknown error'));
             }

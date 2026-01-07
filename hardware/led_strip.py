@@ -1,31 +1,42 @@
+"""
+LED Strip Controller using Adafruit NeoPixel library
+Supports individual pixel control for traffic light semaphore
+
+Raspberry Pi 5: Uses GPIO10 (SPI MOSI) for NeoPixel
+Installation: sudo pip3 install rpi_ws281x adafruit-circuitpython-neopixel --break-system-packages
+
+Must run with sudo for GPIO access!
+"""
+
 import logging
 
 logger = logging.getLogger(__name__)
 
-# Try rpi5_ws2812 first (works on RPi 5), fallback to rpi_ws281x
+# Try to import neopixel library
 LED_AVAILABLE = False
 LED_LIBRARY = None
 
 try:
-    from rpi5_ws2812.ws2812 import WS2812SpiDriver, Color as LEDColor
+    import board
+    import neopixel
     LED_AVAILABLE = True
-    LED_LIBRARY = 'rpi5_ws2812'
-    logger.info("Using rpi5_ws2812 library (RPi 5 compatible)")
+    LED_LIBRARY = 'neopixel'
+    logger.info("Using adafruit-circuitpython-neopixel library")
 except ImportError:
     try:
         from rpi_ws281x import PixelStrip, Color
         LED_AVAILABLE = True
         LED_LIBRARY = 'rpi_ws281x'
-        logger.info("Using rpi_ws281x library (RPi 4 compatible)")
+        logger.info("Using rpi_ws281x library (fallback)")
     except ImportError:
-        logger.warning("No LED library available (rpi5_ws2812 or rpi_ws281x)")
+        logger.warning("No LED library available. Install with: sudo pip3 install rpi_ws281x adafruit-circuitpython-neopixel --break-system-packages")
 
 
 class LEDStripController:
     """
-    LED strip controller supporting both RPi 4 and RPi 5
+    LED strip controller with INDIVIDUAL PIXEL CONTROL
     
-    8 LEDs configured as a traffic light:
+    8 LEDs configured as a traffic light semaphore:
     - LEDs 0-2 (first 3): RED section
     - LEDs 3-4 (middle 2): YELLOW section  
     - LEDs 5-7 (last 3): GREEN section
@@ -34,7 +45,8 @@ class LEDStripController:
     - RED: Red section ON, others OFF
     - YELLOW: Yellow section ON, others OFF
     - GREEN: Green section ON, others OFF
-    - RED_YELLOW: Red + Yellow sections ON
+    - RED_YELLOW: Red + Yellow sections ON (transition state)
+    - ALL_ON: All sections lit in their respective colors (test mode)
     """
 
     # LED segment configuration
@@ -42,22 +54,26 @@ class LEDStripController:
     YELLOW_LEDS = [3, 4]       # Middle 2 LEDs for YELLOW
     GREEN_LEDS = [5, 6, 7]     # Last 3 LEDs for GREEN
     
-    # Colors (will be set with brightness applied)
+    # Colors (RGB tuples)
     COLOR_RED = (255, 0, 0)
-    COLOR_YELLOW = (255, 200, 0)
+    COLOR_YELLOW = (255, 255, 0)  # True yellow = Red + Green
     COLOR_GREEN = (0, 255, 0)
     COLOR_OFF = (0, 0, 0)
 
-    def __init__(self, num_pixels=8, pin=18, freq_hz=800000, dma=10, brightness=64, invert=False, channel=0, spi_bus=0, spi_device=0):
+    def __init__(self, num_pixels=8, pin=18, brightness=64, **kwargs):
+        """
+        Initialize LED strip controller
+        
+        Args:
+            num_pixels: Number of LEDs (default 8)
+            pin: GPIO pin (default 18 for D18)
+            brightness: LED brightness 0-255 (default 64)
+        """
         self.num_pixels = num_pixels
         self.enabled = False
-        self._strip = None
-        self._driver = None
-        self._current_state = 'RED'  # Current traffic light state
+        self._pixels = None
+        self._current_state = 'RED'
         self.brightness = brightness / 255.0 if brightness > 1 else brightness
-        
-        # Store pixel colors for rpi5_ws2812 (it uses set_all_pixels with a list)
-        self._pixel_colors = [(0, 0, 0)] * num_pixels
         
         # For compatibility with traffic controller
         self.leds_per_direction = 2
@@ -66,31 +82,38 @@ class LEDStripController:
 
         if not LED_AVAILABLE:
             logger.warning("No LED library available; LED strip control disabled")
+            logger.warning("Install with: sudo pip3 install rpi_ws281x adafruit-circuitpython-neopixel")
             return
 
         try:
-            if LED_LIBRARY == 'rpi5_ws2812':
-                # RPi 5 - Use SPI-based driver
-                self._driver = WS2812SpiDriver(spi_bus=spi_bus, spi_device=spi_device, led_count=num_pixels)
-                self._strip = self._driver.get_strip()
+            if LED_LIBRARY == 'neopixel':
+                # Use adafruit-circuitpython-neopixel (SUPPORTS INDIVIDUAL PIXELS!)
+                # RPi 5 uses GPIO10 (SPI MOSI), not GPIO18!
+                self._pixels = neopixel.NeoPixel(
+                    board.D10,  # GPIO10 for Raspberry Pi 5 SPI
+                    num_pixels,
+                    brightness=self.brightness,
+                    auto_write=False  # Manual control for better performance
+                )
                 self.enabled = True
-                logger.info(f"✓ LED strip initialized via SPI (rpi5_ws2812) with {num_pixels} LEDs")
+                logger.info(f"✓ LED strip initialized with NeoPixel on GPIO10 (SPI), {num_pixels} LEDs")
                 logger.info(f"  Layout: RED[0-2], YELLOW[3-4], GREEN[5-7]")
+                logger.info(f"  Individual pixel control: ENABLED ✓")
             else:
-                # RPi 4 - Use PWM-based driver
+                # Fallback to rpi_ws281x
                 from rpi_ws281x import PixelStrip, Color
-                self._strip = PixelStrip(
+                self._pixels = PixelStrip(
                     num_pixels,
                     pin,
-                    freq_hz,
-                    dma,
-                    invert,
+                    800000,  # freq_hz
+                    10,      # dma
+                    False,   # invert
                     brightness,
-                    channel,
+                    0,       # channel
                 )
-                self._strip.begin()
+                self._pixels.begin()
                 self.enabled = True
-                logger.info(f"✓ LED strip initialized via PWM (rpi_ws281x) on pin {pin} with {num_pixels} LEDs")
+                logger.info(f"✓ LED strip initialized with rpi_ws281x on GPIO{pin}, {num_pixels} LEDs")
             
             # Start with RED state
             self.set_state('RED')
@@ -100,74 +123,44 @@ class LEDStripController:
             import traceback
             logger.error(traceback.format_exc())
             self.enabled = False
-            self._strip = None
-            self._driver = None
+            self._pixels = None
 
-    def _set_pixel(self, index, rgb):
-        """Set a single pixel to a color (stored in buffer, call _show to update)"""
-        if not self.enabled or self._strip is None:
+    def _set_pixel(self, index, color):
+        """Set a single pixel to a color"""
+        if not self.enabled or self._pixels is None:
             return
         
-        r, g, b = rgb
-        r = int(r * self.brightness)
-        g = int(g * self.brightness)
-        b = int(b * self.brightness)
-        
-        # Store in pixel buffer
         if 0 <= index < self.num_pixels:
-            self._pixel_colors[index] = (r, g, b)
-
-    def _show(self):
-        """Update the LED strip to show changes"""
-        if not self.enabled or self._strip is None:
-            return
-        try:
-            if LED_LIBRARY == 'rpi5_ws2812':
-                from rpi5_ws2812.ws2812 import Color as LEDColor
-                # rpi5_ws2812 only supports set_all_pixels - all LEDs same color
-                # Find which color should be shown based on segments
-                r, g, b = 0, 0, 0
-                
-                # Check which segment is active (priority: GREEN > YELLOW > RED)
-                for i in self.GREEN_LEDS:
-                    pr, pg, pb = self._pixel_colors[i]
-                    if pg > 0:  # Green is on
-                        r, g, b = pr, pg, pb
-                        break
-                
-                if g == 0:  # No green, check yellow
-                    for i in self.YELLOW_LEDS:
-                        pr, pg, pb = self._pixel_colors[i]
-                        if pr > 0 and pg > 0:  # Yellow is on
-                            r, g, b = pr, pg, pb
-                            break
-                
-                if r == 0 and g == 0:  # No yellow, check red
-                    for i in self.RED_LEDS:
-                        pr, pg, pb = self._pixel_colors[i]
-                        if pr > 0:  # Red is on
-                            r, g, b = pr, pg, pb
-                            break
-                
-                color = LEDColor(r, g, b)
-                self._strip.set_all_pixels(color)
-                self._strip.show()
+            # Apply brightness to color
+            r, g, b = color
+            r = int(r * self.brightness)
+            g = int(g * self.brightness)
+            b = int(b * self.brightness)
+            
+            if LED_LIBRARY == 'neopixel':
+                self._pixels[index] = (r, g, b)
             else:
                 from rpi_ws281x import Color
-                for i, (r, g, b) in enumerate(self._pixel_colors):
-                    self._strip.setPixelColor(i, Color(r, g, b))
-                self._strip.show()
+                self._pixels.setPixelColor(index, Color(r, g, b))
+
+    def _show(self):
+        """Update the LED strip to display current pixel values"""
+        if not self.enabled or self._pixels is None:
+            return
+        try:
+            if LED_LIBRARY == 'neopixel':
+                self._pixels.show()
+            else:
+                self._pixels.show()
         except Exception as e:
-            logger.error(f"Error showing LEDs: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
+            logger.error(f"Error updating LEDs: {e}")
 
     def set_state(self, state):
         """
         Set the traffic light state
         
         Args:
-            state: 'RED', 'YELLOW', 'GREEN', 'RED_YELLOW', 'OFF'
+            state: 'RED', 'YELLOW', 'GREEN', 'RED_YELLOW', 'ALL_ON', 'OFF'
         """
         if not self.enabled:
             logger.debug(f"LED set_state({state}) called but strip not enabled")
@@ -182,28 +175,41 @@ class LEDStripController:
         
         # Set appropriate segments based on state
         if state == 'RED':
+            # Only RED section lit
             for i in self.RED_LEDS:
                 self._set_pixel(i, self.COLOR_RED)
                 
         elif state == 'YELLOW':
+            # Only YELLOW section lit
             for i in self.YELLOW_LEDS:
                 self._set_pixel(i, self.COLOR_YELLOW)
                 
         elif state == 'GREEN':
+            # Only GREEN section lit
             for i in self.GREEN_LEDS:
                 self._set_pixel(i, self.COLOR_GREEN)
                 
         elif state == 'RED_YELLOW':
+            # Both RED and YELLOW sections lit (transition)
             for i in self.RED_LEDS:
                 self._set_pixel(i, self.COLOR_RED)
             for i in self.YELLOW_LEDS:
                 self._set_pixel(i, self.COLOR_YELLOW)
                 
+        elif state == 'ALL_ON':
+            # All sections lit in their respective colors (test mode)
+            for i in self.RED_LEDS:
+                self._set_pixel(i, self.COLOR_RED)
+            for i in self.YELLOW_LEDS:
+                self._set_pixel(i, self.COLOR_YELLOW)
+            for i in self.GREEN_LEDS:
+                self._set_pixel(i, self.COLOR_GREEN)
+                
         elif state == 'OFF':
-            pass  # Already turned off
+            pass  # Already turned off above
         
         self._show()
-        logger.info(f"Traffic light set to {state}")
+        logger.info(f"🚦 Traffic light: {state}")
 
     def set_green(self):
         """Set traffic light to GREEN"""
@@ -224,6 +230,15 @@ class LEDStripController:
     def get_state(self):
         """Get current traffic light state"""
         return self._current_state
+    
+    def fill(self, color):
+        """Fill all LEDs with the same color"""
+        if not self.enabled or self._pixels is None:
+            return
+        
+        for i in range(self.num_pixels):
+            self._set_pixel(i, color)
+        self._show()
     
     # Traffic controller compatibility methods
     def set_direction_state(self, direction, state):
@@ -266,6 +281,7 @@ class LEDStripController:
             'YELLOW': self.COLOR_YELLOW,
             'GREEN': self.COLOR_GREEN,
             'RED_YELLOW': (255, 165, 0),
+            'ALL_ON': (255, 255, 255),
             'OFF': self.COLOR_OFF
         }
         return color_map.get(self._current_state, self.COLOR_OFF)
@@ -273,20 +289,55 @@ class LEDStripController:
     def test_sequence(self):
         """Test LED strip with traffic light sequence"""
         import time
-        logger.info("Running traffic light test sequence...")
+        logger.info("🚦 Running traffic light test sequence...")
         
         test_states = [
-            ("RED", 1.0),
-            ("RED_YELLOW", 0.5),
-            ("GREEN", 1.0),
-            ("YELLOW", 0.5),
-            ("RED", 1.0),
-            ("OFF", 0.5)
+            ("ALL_ON", 2.0),    # All colors visible - verify all LEDs work
+            ("RED", 1.5),       # Red section only
+            ("RED_YELLOW", 0.5), # Red + Yellow
+            ("GREEN", 1.5),     # Green section only
+            ("YELLOW", 0.5),    # Yellow section only
+            ("RED", 1.0),       # Back to red
+            ("OFF", 0.5)        # All off
         ]
         
         for state, duration in test_states:
-            logger.info(f"Testing {state}...")
+            logger.info(f"  Testing {state}...")
             self.set_state(state)
             time.sleep(duration)
         
-        logger.info("Traffic light test sequence complete")
+        # End in RED (safe state)
+        self.set_state('RED')
+        logger.info("✓ Traffic light test sequence complete")
+
+    def test_individual_pixels(self):
+        """Test individual pixel control - lights each LED one by one"""
+        import time
+        logger.info("🔬 Testing individual pixel control...")
+        
+        colors = [
+            (255, 0, 0),    # Red
+            (0, 255, 0),    # Green
+            (0, 0, 255),    # Blue
+            (255, 255, 0),  # Yellow
+            (255, 0, 255),  # Magenta
+            (0, 255, 255),  # Cyan
+            (255, 255, 255), # White
+            (255, 128, 0),  # Orange
+        ]
+        
+        # Light each LED individually
+        for i in range(self.num_pixels):
+            # Turn off all LEDs
+            for j in range(self.num_pixels):
+                self._set_pixel(j, (0, 0, 0))
+            
+            # Light only this LED
+            self._set_pixel(i, colors[i % len(colors)])
+            self._show()
+            logger.info(f"  LED {i}: {colors[i % len(colors)]}")
+            time.sleep(0.5)
+        
+        # Show all LEDs with their segment colors
+        self.set_state('ALL_ON')
+        logger.info("✓ Individual pixel test complete - all segments lit")

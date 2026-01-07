@@ -536,7 +536,7 @@ def test_led(request):
                     pass
             
             # Set the color/state
-            valid_colors = ['RED', 'YELLOW', 'GREEN', 'OFF']
+            valid_colors = ['RED', 'YELLOW', 'GREEN', 'ALL_ON', 'OFF']
             if color in valid_colors:
                 led_strip.set_state(color)
                 return JsonResponse({
