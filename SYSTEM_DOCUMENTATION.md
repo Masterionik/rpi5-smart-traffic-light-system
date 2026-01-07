@@ -106,11 +106,11 @@ Controls the traffic light based on vehicle detection.
 
 **Modes:**
 
-| Mode | Description |
-|------|-------------|
+| Mode       | Description                                                   |
+| ---------- | ------------------------------------------------------------- |
 | **SIMPLE** | Immediate response - GREEN when car detected, RED when no car |
-| **AUTO** | Intelligent cycling with timing algorithms |
-| **MANUAL** | Control through web interface |
+| **AUTO**   | Intelligent cycling with timing algorithms                    |
+| **MANUAL** | Control through web interface                                 |
 
 ---
 
@@ -179,11 +179,11 @@ The system uses **SIMPLE mode** by default for immediate response:
 
 ### Timing Constants:
 
-| Parameter | Value | Description |
-|-----------|-------|-------------|
-| `SIMPLE_GREEN_DURATION` | 5 sec | Time to wait before switching to RED |
-| `SIMPLE_YELLOW_DURATION` | 2 sec | Yellow warning time |
-| Red→Yellow→Green transition | 1 sec | Transition time |
+| Parameter                   | Value | Description                          |
+| --------------------------- | ----- | ------------------------------------ |
+| `SIMPLE_GREEN_DURATION`     | 5 sec | Time to wait before switching to RED |
+| `SIMPLE_YELLOW_DURATION`    | 2 sec | Yellow warning time                  |
+| Red→Yellow→Green transition | 1 sec | Transition time                      |
 
 ---
 
@@ -249,14 +249,14 @@ System performance statistics.
 
 ### API Endpoints:
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/camera/status/` | GET | Camera status |
-| `/camera/traffic/status/` | GET | Traffic light status |
-| `/camera/traffic/mode/` | POST | Set mode (SIMPLE/AUTO/MANUAL) |
-| `/camera/detection/toggle/` | POST | Enable/disable detection |
-| `/camera/led/test/` | POST | Test LED strip |
-| `/camera/pedestrian/request/` | POST | Request crossing |
+| Endpoint                      | Method | Description                   |
+| ----------------------------- | ------ | ----------------------------- |
+| `/camera/status/`             | GET    | Camera status                 |
+| `/camera/traffic/status/`     | GET    | Traffic light status          |
+| `/camera/traffic/mode/`       | POST   | Set mode (SIMPLE/AUTO/MANUAL) |
+| `/camera/detection/toggle/`   | POST   | Enable/disable detection      |
+| `/camera/led/test/`           | POST   | Test LED strip                |
+| `/camera/pedestrian/request/` | POST   | Request crossing              |
 
 ---
 
@@ -264,12 +264,12 @@ System performance statistics.
 
 ### Connections:
 
-| Component | RPi 5 Pin | Notes |
-|-----------|-----------|-------|
-| WS2812 LED Data | GPIO10 (Pin 19) | SPI MOSI |
-| WS2812 LED GND | GND (Pin 6) | Common ground |
-| WS2812 LED 5V | 5V (Pin 2) | External power recommended for >8 LEDs |
-| Camera | CSI Port | Camera Module 3 |
+| Component       | RPi 5 Pin       | Notes                                  |
+| --------------- | --------------- | -------------------------------------- |
+| WS2812 LED Data | GPIO10 (Pin 19) | SPI MOSI                               |
+| WS2812 LED GND  | GND (Pin 6)     | Common ground                          |
+| WS2812 LED 5V   | 5V (Pin 2)      | External power recommended for >8 LEDs |
+| Camera          | CSI Port        | Camera Module 3                        |
 
 ### GPIO10 (SPI) for Raspberry Pi 5:
 The neopixel library uses SPI on Pi 5, which is GPIO10 (MOSI), not GPIO18.
@@ -328,13 +328,13 @@ GREEN_LEDS = [5, 6, 7]     # Last 3 LEDs
 
 ## 📝 Summary
 
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| Brain | Raspberry Pi 5 | Main controller |
-| Eyes | Camera Module 3 + YOLOv8 | Vehicle detection |
-| Light | WS2812 LED Strip | Traffic semaphore |
-| Interface | Django + HTML/CSS/JS | Web control |
-| Database | SQLite | Event logging |
+| Component | Technology               | Purpose           |
+| --------- | ------------------------ | ----------------- |
+| Brain     | Raspberry Pi 5           | Main controller   |
+| Eyes      | Camera Module 3 + YOLOv8 | Vehicle detection |
+| Light     | WS2812 LED Strip         | Traffic semaphore |
+| Interface | Django + HTML/CSS/JS     | Web control       |
+| Database  | SQLite                   | Event logging     |
 
 **Traffic Logic:** 
 - 🚗 Car detected → 🟢 GREEN (let it pass)

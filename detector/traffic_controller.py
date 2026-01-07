@@ -7,18 +7,31 @@ import threading
 import time
 import logging
 from collections import deque
-from datetime import datetime, time as dt_time
+from datetime import datetime, date, time as dt_time
 
 logger = logging.getLogger(__name__)
 
+# Track last vehicle count log time to avoid spam
+_last_vehicle_count_log = 0
+VEHICLE_COUNT_LOG_INTERVAL = 10  # Log every 10 seconds
 
-def log_to_database(event_type, message, direction=None, vehicle_count=0, led_state=None, triggered_by='AUTO'):
+
+def log_to_database(event_type, message, direction=None, vehicle_count=0, led_state=None, triggered_by='AUTO', direction_counts=None):
     """
     Log events to Django database
     Safe to call even when Django isn't fully loaded
+    
+    Args:
+        event_type: Type of event (CAR, PEDESTRIAN, LED_CHANGE, SYSTEM, EMERGENCY)
+        message: Event description
+        direction: Direction (NORTH, EAST, SOUTH, WEST)
+        vehicle_count: Total vehicle count
+        led_state: LED state if changed
+        triggered_by: What triggered the event
+        direction_counts: Dict with counts per direction {'NORTH': 5, 'EAST': 3, ...}
     """
     try:
-        from detection.models import DetectionEvent, TrafficLightState, VehicleCount
+        from detection.models import DetectionEvent, TrafficLightState, VehicleCount, SystemStats
         
         # Log detection event
         DetectionEvent.objects.create(
@@ -35,6 +48,30 @@ def log_to_database(event_type, message, direction=None, vehicle_count=0, led_st
                 direction=direction,
                 triggered_by=triggered_by
             )
+        
+        # Log vehicle counts periodically (not every call)
+        global _last_vehicle_count_log
+        current_time = time.time()
+        if direction_counts and (current_time - _last_vehicle_count_log) >= VEHICLE_COUNT_LOG_INTERVAL:
+            _last_vehicle_count_log = current_time
+            total = sum(direction_counts.values())
+            VehicleCount.objects.create(
+                north_count=direction_counts.get('NORTH', 0),
+                east_count=direction_counts.get('EAST', 0),
+                south_count=direction_counts.get('SOUTH', 0),
+                west_count=direction_counts.get('WEST', 0),
+                total_count=total
+            )
+            
+            # Update daily stats
+            today = date.today()
+            stats, created = SystemStats.objects.get_or_create(date=today)
+            stats.total_vehicles_detected += total
+            if event_type == 'PEDESTRIAN':
+                stats.total_pedestrian_requests += 1
+            if led_state:
+                stats.total_light_cycles += 1
+            stats.save()
             
     except Exception as e:
         logger.debug(f"Could not log to database: {e}")
@@ -46,8 +83,13 @@ class TrafficController:
     
     Modes:
     - SIMPLE: Immediate response to vehicle detection (car → GREEN, no car → RED)
-    - AUTO: Intelligent cycling with dynamic timing
+    - AUTO: Intelligent cycling with dynamic timing (green time proportional to vehicles)
     - MANUAL: Manual control through API
+    
+    INTELLIGENT ALGORITHM:
+    - Green time = T_MIN + (vehicle_count * T_PER_VEHICLE), capped at T_MAX
+    - Emergency vehicles get IMMEDIATE priority (instant green)
+    - Pedestrians can request crossing (overrides after current cycle)
     
     LED Layout (8 LEDs configured as traffic light):
     - LEDs 0-2: RED section
@@ -58,6 +100,7 @@ class TrafficController:
     # Timing constants (seconds)
     T_MIN = 10   # Minimum green time
     T_MAX = 60   # Maximum green time
+    T_PER_VEHICLE = 3  # Additional seconds per vehicle detected
     T_YELLOW = 2  # Yellow light duration
     T_RED_YELLOW = 1.5  # Red+Yellow transition
     T_PEDESTRIAN = 15  # Pedestrian green time
@@ -66,6 +109,10 @@ class TrafficController:
     # Simple mode settings
     SIMPLE_GREEN_DURATION = 5  # Seconds to show green after detection
     SIMPLE_YELLOW_DURATION = 2  # Seconds to show yellow before red
+    
+    # Emergency settings
+    EMERGENCY_PRIORITY = False  # DISABLED by default (color detection needs tuning)
+    EMERGENCY_GREEN_TIME = 20  # Green time for emergency vehicle
     
     # Directions
     DIRECTIONS = ['NORTH', 'EAST', 'SOUTH', 'WEST']
@@ -78,6 +125,10 @@ class TrafficController:
             led_controller: LEDStripController instance
         """
         self.led_controller = led_controller
+        
+        # Emergency vehicle handling
+        self.emergency_active = False
+        self.emergency_direction = None
         
         # Current system state
         self.current_direction = 0  # Index of current green direction
@@ -142,14 +193,87 @@ class TrafficController:
         self._log_event("SYSTEM", "Traffic controller stopped")
         logger.info("Traffic controller stopped")
     
-    def update_vehicle_counts(self, counts_dict):
+    def handle_emergency(self, direction):
+        """
+        Handle emergency vehicle detection - IMMEDIATE priority
+        
+        Args:
+            direction: Direction of emergency vehicle
+        """
+        if not self.EMERGENCY_PRIORITY:
+            logger.debug(f"Emergency priority disabled - ignoring detection in {direction}")
+            return
+        
+        # Use try-finally to prevent blocking
+        try:
+            with self.lock:
+                if not self.emergency_active:
+                    self.emergency_active = True
+                    self.emergency_direction = direction
+                    
+                    logger.warning(f"🚨 EMERGENCY PRIORITY: {direction} - Switching to GREEN immediately!")
+                    self._log_event("EMERGENCY", f"Emergency vehicle in {direction} - Priority activated")
+                    
+                    try:
+                        log_to_database('EMERGENCY', f"Emergency vehicle priority for {direction}", direction, 0, 'GREEN', 'EMERGENCY')
+                    except Exception as db_err:
+                        logger.debug(f"Could not log to database: {db_err}")
+                    
+                    # Immediate transition to green for emergency
+                    if self.led_controller:
+                        self.led_controller.set_state('GREEN')
+                    self.current_state = 'GREEN'
+                    
+                    # Schedule return to normal after emergency green time (non-blocking)
+                    timer = threading.Timer(self.EMERGENCY_GREEN_TIME, self._end_emergency)
+                    timer.daemon = True  # Don't block program exit
+                    timer.start()
+        except Exception as e:
+            logger.error(f"Emergency handler error: {e}")
+            self.emergency_active = False
+    
+    def _end_emergency(self):
+        """End emergency priority mode"""
+        with self.lock:
+            self.emergency_active = False
+            self.emergency_direction = None
+            logger.info("🚨 Emergency priority ended - returning to normal operation")
+            self._log_event("EMERGENCY", "Emergency priority ended")
+    
+    def calculate_green_time(self, vehicle_count):
+        """
+        INTELLIGENT ALGORITHM: Calculate green time proportional to vehicle count
+        
+        Formula: green_time = T_MIN + (vehicle_count * T_PER_VEHICLE)
+        Capped between T_MIN and T_MAX
+        
+        Args:
+            vehicle_count: Number of vehicles detected
+            
+        Returns:
+            Green time in seconds
+        """
+        green_time = self.T_MIN + (vehicle_count * self.T_PER_VEHICLE)
+        green_time = max(self.T_MIN, min(green_time, self.T_MAX))
+        
+        logger.debug(f"Calculated green time: {green_time}s for {vehicle_count} vehicles")
+        return green_time
+    
+    def update_vehicle_counts(self, counts_dict, emergency_info=None):
         """
         Update vehicle counts from detection system
         In SIMPLE mode, triggers immediate LED response
+        Handles emergency vehicle priority
         
         Args:
             counts_dict: Dict with keys 'NORTH', 'EAST', 'SOUTH', 'WEST'
+            emergency_info: Dict with 'detected', 'direction' from detector
         """
+        # Check for emergency vehicle FIRST (highest priority)
+        if emergency_info and emergency_info.get('detected'):
+            self.handle_emergency(emergency_info.get('direction'))
+            return  # Emergency takes over, skip normal processing
+        
         with self.lock:
             # Store previous counts for comparison
             old_total = sum(self.vehicle_counts.values())
@@ -167,6 +291,19 @@ class TrafficController:
                         # Don't log vehicle leaving for less spam
             
             new_total = sum(self.vehicle_counts.values())
+            
+            # Log vehicle counts to database periodically
+            log_to_database(
+                'CAR', 
+                f"Vehicle count update: N={self.vehicle_counts['NORTH']} E={self.vehicle_counts['EAST']} S={self.vehicle_counts['SOUTH']} W={self.vehicle_counts['WEST']}", 
+                direction=None, 
+                vehicle_count=new_total,
+                direction_counts=self.vehicle_counts.copy()
+            )
+        
+        # Skip normal processing if emergency is active
+        if self.emergency_active:
+            return
         
         # SIMPLE mode: Immediate LED response based on detection
         if self.mode == 'SIMPLE':

@@ -121,6 +121,7 @@ class YOLODetector:
     """
     Enhanced YOLO vehicle detection with tracking and ROI support
     Optimized for Raspberry Pi 5 with multiple vehicle classes
+    Includes EMERGENCY VEHICLE detection for priority handling
     """
     
     # COCO dataset vehicle classes
@@ -129,6 +130,14 @@ class YOLODetector:
         3: 'motorcycle', 
         5: 'bus',
         7: 'truck'
+    }
+    
+    # Emergency vehicle detection (visual cues)
+    # We detect based on color patterns typical of emergency vehicles
+    EMERGENCY_COLORS = {
+        'ambulance': [(255, 0, 0), (255, 255, 255)],  # Red and white
+        'police': [(0, 0, 255), (255, 255, 255)],      # Blue and white
+        'fire': [(255, 0, 0), (255, 255, 0)]           # Red and yellow
     }
     
     def __init__(self, model_name='yolov8n.pt'):
@@ -170,6 +179,11 @@ class YOLODetector:
         
         # Detection confidence threshold
         self.confidence_threshold = 0.5
+        
+        # Emergency vehicle detection
+        self.emergency_detected = False
+        self.emergency_direction = None
+        self.emergency_cooldown = 0  # Frames since last emergency
         
     def load_model(self):
         """Load YOLO model"""
@@ -215,6 +229,77 @@ class YOLODetector:
         cx = (x1 + x2) / 2
         cy = (y1 + y2) / 2
         return (cx, cy)
+    
+    def _detect_emergency_vehicle(self, frame, bbox):
+        """
+        Detect if a vehicle is an emergency vehicle based on color patterns.
+        Looks for red/blue flashing light colors typical of emergency vehicles.
+        
+        Args:
+            frame: Input frame (BGR)
+            bbox: Bounding box (x1, y1, x2, y2)
+            
+        Returns:
+            Tuple of (is_emergency, emergency_type)
+        """
+        try:
+            x1, y1, x2, y2 = map(int, bbox)
+            
+            # Get vehicle region
+            vehicle_roi = frame[y1:y2, x1:x2]
+            if vehicle_roi.size == 0:
+                return False, None
+            
+            # Convert to HSV for better color detection
+            hsv = cv2.cvtColor(vehicle_roi, cv2.COLOR_BGR2HSV)
+            
+            # Define color ranges for emergency lights
+            # Red color range (emergency lights)
+            red_lower1 = np.array([0, 100, 100])
+            red_upper1 = np.array([10, 255, 255])
+            red_lower2 = np.array([160, 100, 100])
+            red_upper2 = np.array([180, 255, 255])
+            
+            # Blue color range (police lights)
+            blue_lower = np.array([100, 100, 100])
+            blue_upper = np.array([130, 255, 255])
+            
+            # Create masks
+            red_mask1 = cv2.inRange(hsv, red_lower1, red_upper1)
+            red_mask2 = cv2.inRange(hsv, red_lower2, red_upper2)
+            red_mask = red_mask1 | red_mask2
+            blue_mask = cv2.inRange(hsv, blue_lower, blue_upper)
+            
+            # Calculate percentage of emergency colors
+            total_pixels = vehicle_roi.shape[0] * vehicle_roi.shape[1]
+            red_pixels = cv2.countNonZero(red_mask)
+            blue_pixels = cv2.countNonZero(blue_mask)
+            
+            red_ratio = red_pixels / total_pixels if total_pixels > 0 else 0
+            blue_ratio = blue_pixels / total_pixels if total_pixels > 0 else 0
+            
+            # STRICT thresholds to avoid false positives
+            # Emergency lights typically occupy a significant portion of vehicle top area
+            # Threshold: 15% of vehicle must be emergency color + minimum 500 pixels
+            EMERGENCY_THRESHOLD = 0.15  # 15% threshold (was 5%, too sensitive)
+            MIN_EMERGENCY_PIXELS = 500  # Minimum pixels to trigger
+            
+            # Both red AND blue must be present for police (reduces false positives)
+            if (red_ratio > EMERGENCY_THRESHOLD and blue_ratio > EMERGENCY_THRESHOLD and 
+                red_pixels > MIN_EMERGENCY_PIXELS and blue_pixels > MIN_EMERGENCY_PIXELS):
+                logger.info(f"Emergency detected: red={red_ratio:.2%}, blue={blue_ratio:.2%}")
+                return True, 'police'  # Red + Blue = Police
+            
+            # Very high threshold for single color (30% to avoid taillights, etc.)
+            elif red_ratio > 0.30 and red_pixels > MIN_EMERGENCY_PIXELS * 2:
+                logger.info(f"Emergency ambulance detected: red={red_ratio:.2%}")
+                return True, 'ambulance'  # Strong red = Ambulance/Fire
+            
+            return False, None
+            
+        except Exception as e:
+            logger.debug(f"Emergency detection error: {e}")
+            return False, None
     
     def detect_vehicles(self, frame, draw_roi=True):
         """
@@ -288,9 +373,17 @@ class YOLODetector:
             # Update tracker
             tracked_objects = self.tracker.update(detections)
             
+            # Reset emergency status
+            self.emergency_detected = False
+            self.emergency_direction = None
+            self.emergency_cooldown += 1
+            
             # Count vehicles per direction and draw annotations
             for obj_id, (centroid, bbox) in tracked_objects.items():
                 x1, y1, x2, y2 = bbox
+                
+                # Check for emergency vehicle
+                is_emergency, emergency_type = self._detect_emergency_vehicle(frame, bbox)
                 
                 # Determine which direction this vehicle is in
                 for direction in self.direction_counts:
@@ -304,21 +397,32 @@ class YOLODetector:
                             'SOUTH': (0, 0, 255),
                             'WEST': (255, 255, 0)
                         }
-                        color = colors[direction]
                         
-                        cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
+                        # Use special color for emergency vehicles
+                        # Only trigger emergency if cooldown has passed (prevent spam)
+                        EMERGENCY_COOLDOWN_FRAMES = 300  # ~10 seconds at 30fps
+                        if is_emergency and self.emergency_cooldown > EMERGENCY_COOLDOWN_FRAMES:
+                            color = (0, 0, 255)  # Bright red for emergency
+                            self.emergency_detected = True
+                            self.emergency_direction = direction
+                            self.emergency_cooldown = 0  # Reset cooldown
+                            logger.warning(f"🚨 EMERGENCY VEHICLE ({emergency_type}) detected in {direction}!")
+                        elif is_emergency:
+                            # Emergency detected but in cooldown
+                            color = (128, 0, 255)  # Purple = emergency but on cooldown
+                            logger.debug(f"Emergency on cooldown: {self.emergency_cooldown}/{EMERGENCY_COOLDOWN_FRAMES}")
+                        else:
+                            color = colors[direction]
                         
-                        # Draw ID and direction
-                        label = f"ID:{obj_id} {direction}"
-                        cv2.putText(
-                            annotated_frame,
-                            label,
-                            (x1, y1 - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.5,
-                            color,
-                            2
-                        )
+                        cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2 if not is_emergency else 4)
+                        
+                        # Draw ID and direction (with EMERGENCY label)
+                        if is_emergency:
+                            label = f"🚨 EMERGENCY {emergency_type.upper()}"
+                            cv2.putText(annotated_frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 3)
+                        else:
+                            label = f"ID:{obj_id} {direction}"
+                            cv2.putText(annotated_frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
                         
                         # Draw centroid
                         cx, cy = map(int, centroid)
@@ -387,3 +491,36 @@ class YOLODetector:
     def get_fps(self):
         """Get current processing FPS"""
         return self.fps
+    
+    def is_emergency_detected(self):
+        """Check if an emergency vehicle is currently detected"""
+        return self.emergency_detected
+    
+    def get_emergency_info(self):
+        """Get emergency vehicle detection info"""
+        return {
+            'detected': self.emergency_detected,
+            'direction': self.emergency_direction,
+            'cooldown_frames': self.emergency_cooldown
+        }
+    
+    def configure_zones(self, zones_config):
+        """
+        Configure detection zones from settings
+        
+        Args:
+            zones_config: Dict with zone configurations
+                {
+                    'NORTH': {'x1': 0.0, 'y1': 0.0, 'x2': 0.5, 'y2': 0.5, 'enabled': True},
+                    ...
+                }
+        """
+        for direction, config in zones_config.items():
+            if direction in self.roi_zones and config.get('enabled', True):
+                self.roi_zones[direction] = (
+                    config.get('x1', 0),
+                    config.get('y1', 0),
+                    config.get('x2', 1),
+                    config.get('y2', 1)
+                )
+                logger.info(f"Zone {direction} configured: {self.roi_zones[direction]}")

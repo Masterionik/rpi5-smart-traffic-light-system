@@ -253,8 +253,196 @@
         <button class="btn btn-danger" onclick="emergencyStop()">
             <i class="fas fa-exclamation-triangle"></i> Emergency Stop
         </button>
-        <button class="btn btn-outline" onclick="exportConfig()">
-            <i class="fas fa-download"></i> Export Configuration
+    </div>
+</div>
+
+<!-- Backup & Restore -->
+<div class="card" style="margin-top: 25px;">
+    <div class="card-header">
+        <div class="card-title">
+            <i class="fas fa-database"></i>
+            Backup & Restore Settings
+        </div>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start;">
+        <div style="flex: 1; min-width: 250px;">
+            <h4 style="color: var(--text-secondary); font-size: 13px; margin-bottom: 12px; text-transform: uppercase;">
+                <i class="fas fa-download"></i> Backup
+            </h4>
+            <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 15px;">
+                Download current system settings including traffic timing, LED configuration, detection zones, and mode.
+            </p>
+            <button class="btn btn-primary" onclick="backupSettings()">
+                <i class="fas fa-download"></i> Download Backup
+            </button>
+        </div>
+        <div style="flex: 1; min-width: 250px;">
+            <h4 style="color: var(--text-secondary); font-size: 13px; margin-bottom: 12px; text-transform: uppercase;">
+                <i class="fas fa-upload"></i> Restore
+            </h4>
+            <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 15px;">
+                Upload a previously saved backup file to restore system settings.
+            </p>
+            <input type="file" id="restoreFile" accept=".json" style="display: none;" onchange="restoreSettings(this)">
+            <button class="btn btn-warning" onclick="document.getElementById('restoreFile').click()">
+                <i class="fas fa-upload"></i> Upload & Restore
+            </button>
+        </div>
+    </div>
+    <div id="backupStatus" style="margin-top: 15px; padding: 10px; border-radius: 8px; display: none;"></div>
+</div>
+
+<!-- Emergency Vehicle Priority Settings -->
+<div class="card" style="margin-top: 25px;">
+    <div class="card-header">
+        <div class="card-title">
+            <i class="fas fa-ambulance"></i>
+            Emergency Vehicle Priority
+        </div>
+        <span class="badge badge-danger" id="emergencyBadge">Active</span>
+    </div>
+    <div style="margin-bottom: 20px;">
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+            <input type="checkbox" id="emergencyPriority" checked style="width: 20px; height: 20px;">
+            <span style="color: var(--text-secondary); font-size: 13px;">Enable Emergency Vehicle Detection (Ambulance, Police, Fire)</span>
+        </label>
+    </div>
+    <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">
+            Emergency Green Time (seconds)
+        </label>
+        <input type="number" id="emergencyGreenTime" value="20" min="10" max="60">
+        <p style="color: var(--text-secondary); font-size: 11px; margin-top: 5px;">
+            Time for green light when emergency vehicle is detected
+        </p>
+    </div>
+    <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">
+            Time per Vehicle (seconds) - Intelligent Algorithm
+        </label>
+        <input type="number" id="timePerVehicle" value="3" min="1" max="10" step="0.5">
+        <p style="color: var(--text-secondary); font-size: 11px; margin-top: 5px;">
+            Green time = T_MIN + (vehicles × T_PER_VEHICLE). Proportional to waiting vehicles.
+        </p>
+    </div>
+    <button class="btn btn-primary" onclick="saveEmergencySettings()">
+        <i class="fas fa-save"></i> Save Emergency Settings
+    </button>
+</div>
+
+<!-- Zone Configuration -->
+<div class="card" style="margin-top: 25px;">
+    <div class="card-header">
+        <div class="card-title">
+            <i class="fas fa-th-large"></i>
+            Detection Zone Configuration
+        </div>
+    </div>
+    <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 20px;">
+        Configure detection zones for each direction. Values are in normalized coordinates (0.0 - 1.0).
+        The camera view is divided into 4 quadrants for directional vehicle counting.
+    </p>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+        <!-- NORTH Zone -->
+        <div style="padding: 15px; background: var(--bg-input); border-radius: 10px; border-left: 4px solid #3498db;">
+            <h4 style="color: #3498db; margin-bottom: 10px;"><i class="fas fa-arrow-up"></i> NORTH Zone</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                    <label style="font-size: 11px; color: var(--text-secondary);">X1</label>
+                    <input type="number" id="zone-north-x1" value="0.25" min="0" max="1" step="0.01" style="width: 100%;">
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: var(--text-secondary);">Y1</label>
+                    <input type="number" id="zone-north-y1" value="0" min="0" max="1" step="0.01" style="width: 100%;">
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: var(--text-secondary);">X2</label>
+                    <input type="number" id="zone-north-x2" value="0.75" min="0" max="1" step="0.01" style="width: 100%;">
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: var(--text-secondary);">Y2</label>
+                    <input type="number" id="zone-north-y2" value="0.33" min="0" max="1" step="0.01" style="width: 100%;">
+                </div>
+            </div>
+        </div>
+        
+        <!-- SOUTH Zone -->
+        <div style="padding: 15px; background: var(--bg-input); border-radius: 10px; border-left: 4px solid #e74c3c;">
+            <h4 style="color: #e74c3c; margin-bottom: 10px;"><i class="fas fa-arrow-down"></i> SOUTH Zone</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                    <label style="font-size: 11px; color: var(--text-secondary);">X1</label>
+                    <input type="number" id="zone-south-x1" value="0.25" min="0" max="1" step="0.01" style="width: 100%;">
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: var(--text-secondary);">Y1</label>
+                    <input type="number" id="zone-south-y1" value="0.67" min="0" max="1" step="0.01" style="width: 100%;">
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: var(--text-secondary);">X2</label>
+                    <input type="number" id="zone-south-x2" value="0.75" min="0" max="1" step="0.01" style="width: 100%;">
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: var(--text-secondary);">Y2</label>
+                    <input type="number" id="zone-south-y2" value="1" min="0" max="1" step="0.01" style="width: 100%;">
+                </div>
+            </div>
+        </div>
+        
+        <!-- EAST Zone -->
+        <div style="padding: 15px; background: var(--bg-input); border-radius: 10px; border-left: 4px solid #2ecc71;">
+            <h4 style="color: #2ecc71; margin-bottom: 10px;"><i class="fas fa-arrow-right"></i> EAST Zone</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                    <label style="font-size: 11px; color: var(--text-secondary);">X1</label>
+                    <input type="number" id="zone-east-x1" value="0.67" min="0" max="1" step="0.01" style="width: 100%;">
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: var(--text-secondary);">Y1</label>
+                    <input type="number" id="zone-east-y1" value="0.25" min="0" max="1" step="0.01" style="width: 100%;">
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: var(--text-secondary);">X2</label>
+                    <input type="number" id="zone-east-x2" value="1" min="0" max="1" step="0.01" style="width: 100%;">
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: var(--text-secondary);">Y2</label>
+                    <input type="number" id="zone-east-y2" value="0.75" min="0" max="1" step="0.01" style="width: 100%;">
+                </div>
+            </div>
+        </div>
+        
+        <!-- WEST Zone -->
+        <div style="padding: 15px; background: var(--bg-input); border-radius: 10px; border-left: 4px solid #f39c12;">
+            <h4 style="color: #f39c12; margin-bottom: 10px;"><i class="fas fa-arrow-left"></i> WEST Zone</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                    <label style="font-size: 11px; color: var(--text-secondary);">X1</label>
+                    <input type="number" id="zone-west-x1" value="0" min="0" max="1" step="0.01" style="width: 100%;">
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: var(--text-secondary);">Y1</label>
+                    <input type="number" id="zone-west-y1" value="0.25" min="0" max="1" step="0.01" style="width: 100%;">
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: var(--text-secondary);">X2</label>
+                    <input type="number" id="zone-west-x2" value="0.33" min="0" max="1" step="0.01" style="width: 100%;">
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: var(--text-secondary);">Y2</label>
+                    <input type="number" id="zone-west-y2" value="0.75" min="0" max="1" step="0.01" style="width: 100%;">
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div style="margin-top: 20px; display: flex; gap: 15px;">
+        <button class="btn btn-primary" onclick="saveZoneSettings()">
+            <i class="fas fa-save"></i> Save Zone Configuration
+        </button>
+        <button class="btn btn-outline" onclick="loadZoneSettings()">
+            <i class="fas fa-sync"></i> Load Current
         </button>
     </div>
 </div>
@@ -509,6 +697,190 @@
         a.click();
         URL.revokeObjectURL(url);
     }
+
+    // ===== BACKUP & RESTORE FUNCTIONS =====
+    function backupSettings() {
+        const statusDiv = document.getElementById('backupStatus');
+        statusDiv.style.display = 'block';
+        statusDiv.style.background = 'var(--bg-input)';
+        statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating backup...';
+        
+        fetch('{% url "camera:backup_settings" %}')
+            .then(response => response.json())
+            .then(data => {
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                a.download = `traffic_system_backup_${timestamp}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                statusDiv.style.background = 'rgba(72, 187, 120, 0.2)';
+                statusDiv.innerHTML = '<i class="fas fa-check-circle" style="color: var(--success);"></i> Backup downloaded successfully!';
+                setTimeout(() => { statusDiv.style.display = 'none'; }, 3000);
+            })
+            .catch(error => {
+                console.error('Backup error:', error);
+                statusDiv.style.background = 'rgba(245, 101, 101, 0.2)';
+                statusDiv.innerHTML = '<i class="fas fa-times-circle" style="color: var(--danger);"></i> Backup failed: ' + error;
+            });
+    }
+
+    function restoreSettings(input) {
+        const file = input.files[0];
+        if (!file) return;
+        
+        const statusDiv = document.getElementById('backupStatus');
+        statusDiv.style.display = 'block';
+        statusDiv.style.background = 'var(--bg-input)';
+        statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Restoring settings...';
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                
+                fetch('{% url "camera:restore_settings" %}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        statusDiv.style.background = 'rgba(72, 187, 120, 0.2)';
+                        statusDiv.innerHTML = `<i class="fas fa-check-circle" style="color: var(--success);"></i> ${result.message}. Restored: ${result.restored.join(', ')}`;
+                        // Reload page to reflect changes
+                        setTimeout(() => { location.reload(); }, 2000);
+                    } else {
+                        throw new Error(result.error || 'Unknown error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Restore error:', error);
+                    statusDiv.style.background = 'rgba(245, 101, 101, 0.2)';
+                    statusDiv.innerHTML = '<i class="fas fa-times-circle" style="color: var(--danger);"></i> Restore failed: ' + error;
+                });
+            } catch (parseError) {
+                statusDiv.style.background = 'rgba(245, 101, 101, 0.2)';
+                statusDiv.innerHTML = '<i class="fas fa-times-circle" style="color: var(--danger);"></i> Invalid JSON file';
+            }
+        };
+        reader.readAsText(file);
+        input.value = ''; // Reset file input
+    }
+
+    // ===== EMERGENCY SETTINGS =====
+    function saveEmergencySettings() {
+        const enabled = document.getElementById('emergencyPriority').checked;
+        const greenTime = document.getElementById('emergencyGreenTime').value;
+        const timePerVehicle = document.getElementById('timePerVehicle').value;
+        
+        // Use backup/restore mechanism to save settings
+        const settings = {
+            traffic_controller: {
+                EMERGENCY_PRIORITY: enabled,
+                EMERGENCY_GREEN_TIME: parseInt(greenTime),
+                T_PER_VEHICLE: parseFloat(timePerVehicle)
+            }
+        };
+        
+        fetch('{% url "camera:restore_settings" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ Emergency settings saved successfully!');
+            } else {
+                alert('❌ Error: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ Failed to save settings: ' + error);
+        });
+    }
+
+    // ===== ZONE CONFIGURATION =====
+    function loadZoneSettings() {
+        fetch('{% url "camera:configure_zones" %}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.zones) {
+                    for (const [direction, coords] of Object.entries(data.zones)) {
+                        const dir = direction.toLowerCase();
+                        if (coords && coords.length === 4) {
+                            document.getElementById(`zone-${dir}-x1`).value = coords[0];
+                            document.getElementById(`zone-${dir}-y1`).value = coords[1];
+                            document.getElementById(`zone-${dir}-x2`).value = coords[2];
+                            document.getElementById(`zone-${dir}-y2`).value = coords[3];
+                        }
+                    }
+                    alert('✅ Zone configuration loaded!');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading zones:', error);
+                alert('❌ Failed to load zones: ' + error);
+            });
+    }
+
+    function saveZoneSettings() {
+        const zones = {
+            NORTH: [
+                parseFloat(document.getElementById('zone-north-x1').value),
+                parseFloat(document.getElementById('zone-north-y1').value),
+                parseFloat(document.getElementById('zone-north-x2').value),
+                parseFloat(document.getElementById('zone-north-y2').value)
+            ],
+            SOUTH: [
+                parseFloat(document.getElementById('zone-south-x1').value),
+                parseFloat(document.getElementById('zone-south-y1').value),
+                parseFloat(document.getElementById('zone-south-x2').value),
+                parseFloat(document.getElementById('zone-south-y2').value)
+            ],
+            EAST: [
+                parseFloat(document.getElementById('zone-east-x1').value),
+                parseFloat(document.getElementById('zone-east-y1').value),
+                parseFloat(document.getElementById('zone-east-x2').value),
+                parseFloat(document.getElementById('zone-east-y2').value)
+            ],
+            WEST: [
+                parseFloat(document.getElementById('zone-west-x1').value),
+                parseFloat(document.getElementById('zone-west-y1').value),
+                parseFloat(document.getElementById('zone-west-x2').value),
+                parseFloat(document.getElementById('zone-west-y2').value)
+            ]
+        };
+        
+        fetch('{% url "camera:configure_zones" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(zones)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ Zone configuration saved!');
+            } else {
+                alert('❌ Error: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ Failed to save zones: ' + error);
+        });
+    }
+
+    // Load zone settings on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadZoneSettings();
+    });
 
     // Update status on load
     window.addEventListener('load', () => {

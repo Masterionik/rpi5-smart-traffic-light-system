@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-header">
     <h1><i class="fas fa-chart-line"></i> Analytics & Logs</h1>
-    <p>Detailed traffic statistics and system event logs</p>
+    <p>Detailed traffic statistics and system event logs from database</p>
 </div>
 
 <!-- Stats Cards -->
@@ -33,25 +33,39 @@
     </div>
     <div class="stat-box">
         <div class="stat-icon danger">
-            <i class="fas fa-clock"></i>
+            <i class="fas fa-database"></i>
         </div>
-        <div class="stat-label">Uptime</div>
-        <div class="stat-value" id="systemUptime">0h</div>
+        <div class="stat-label">DB Records</div>
+        <div class="stat-value" id="dbRecords">0</div>
+    </div>
+</div>
+
+<!-- Time Range Selector -->
+<div class="card" style="margin-bottom: 25px; padding: 15px;">
+    <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+        <span style="color: var(--text-secondary);"><i class="fas fa-clock"></i> Time Range:</span>
+        <button class="btn btn-outline" onclick="loadHistoryData(1)" id="btn-1h">Last Hour</button>
+        <button class="btn btn-primary" onclick="loadHistoryData(6)" id="btn-6h">Last 6 Hours</button>
+        <button class="btn btn-outline" onclick="loadHistoryData(24)" id="btn-24h">Last 24 Hours</button>
+        <button class="btn btn-outline" onclick="loadHistoryData(168)" id="btn-7d">Last 7 Days</button>
+        <button class="btn btn-success" onclick="loadHistoryData(0)" style="margin-left: auto;">
+            <i class="fas fa-sync"></i> Refresh
+        </button>
     </div>
 </div>
 
 <!-- Charts Grid -->
 <div class="grid-2" style="margin-bottom: 25px;">
-    <!-- Vehicle Detection Chart -->
+    <!-- Vehicle Detection History Chart -->
     <div class="card">
         <div class="card-header">
             <div class="card-title">
                 <i class="fas fa-chart-area"></i>
-                Vehicle Detection Over Time
+                Vehicle Count History (from Database)
             </div>
         </div>
         <div style="height: 300px; position: relative;">
-            <canvas id="detectionChart"></canvas>
+            <canvas id="historyChart"></canvas>
         </div>
     </div>
 
@@ -69,21 +83,203 @@
     </div>
 </div>
 
-<!-- LED States History -->
+<!-- Daily Statistics Chart -->
 <div class="card" style="margin-bottom: 25px;">
     <div class="card-header">
         <div class="card-title">
-            <i class="fas fa-lightbulb"></i>
-            LED State Changes
-        </div>
-        <div style="display: flex; gap: 10px;">
-            <span class="badge badge-danger"><i class="fas fa-circle"></i> RED</span>
-            <span class="badge badge-warning"><i class="fas fa-circle"></i> YELLOW</span>
-            <span class="badge badge-success"><i class="fas fa-circle"></i> GREEN</span>
+            <i class="fas fa-calendar-alt"></i>
+            Daily Statistics (Last 7 Days)
         </div>
     </div>
-    <div style="height: 150px; position: relative;">
-        <canvas id="ledChart"></canvas>
+    <div style="height: 250px; position: relative;">
+        <canvas id="dailyChart"></canvas>
+    </div>
+</div>
+
+<!-- LED States Distribution -->
+<div class="grid-2" style="margin-bottom: 25px;">
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fas fa-lightbulb"></i>
+                LED State Distribution
+            </div>
+        </div>
+        <div style="height: 200px; position: relative;">
+            <canvas id="ledPieChart"></canvas>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fas fa-chart-bar"></i>
+                Events by Type
+            </div>
+        </div>
+        <div style="height: 200px; position: relative;">
+            <canvas id="eventsChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Peak Hour Analysis -->
+<div class="card" style="margin-bottom: 25px;">
+    <div class="card-header">
+        <div class="card-title">
+            <i class="fas fa-clock"></i>
+            Peak Hour Analysis
+        </div>
+        <div id="peakHourBadges" style="display: flex; gap: 10px;">
+            <span class="badge badge-danger" id="peakHour1">--:00</span>
+            <span class="badge badge-warning" id="peakHour2">--:00</span>
+            <span class="badge badge-success" id="peakHour3">--:00</span>
+        </div>
+    </div>
+    <div style="height: 200px; position: relative;">
+        <canvas id="peakHourChart"></canvas>
+    </div>
+</div>
+
+<!-- Heatmap -->
+<div class="card" style="margin-bottom: 25px;">
+    <div class="card-header">
+        <div class="card-title">
+            <i class="fas fa-th"></i>
+            Traffic Heatmap (Day × Hour)
+        </div>
+    </div>
+    <div id="heatmapContainer" style="padding: 20px; overflow-x: auto;">
+        <div id="heatmapGrid" style="display: grid; gap: 2px; min-width: 800px;">
+            <!-- Heatmap will be generated by JavaScript -->
+        </div>
+        <div style="display: flex; justify-content: center; margin-top: 15px; gap: 10px; font-size: 12px;">
+            <span style="display: flex; align-items: center; gap: 5px;">
+                <div style="width: 20px; height: 20px; background: #1a1a2e; border-radius: 3px;"></div> Low
+            </span>
+            <span style="display: flex; align-items: center; gap: 5px;">
+                <div style="width: 20px; height: 20px; background: #4a69bd; border-radius: 3px;"></div> Medium
+            </span>
+            <span style="display: flex; align-items: center; gap: 5px;">
+                <div style="width: 20px; height: 20px; background: #e74c3c; border-radius: 3px;"></div> High
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Traffic Prediction -->
+<div class="card" style="margin-bottom: 25px;">
+    <div class="card-header">
+        <div class="card-title">
+            <i class="fas fa-crystal-ball"></i>
+            Traffic Prediction (ML-Based)
+        </div>
+        <button class="btn btn-primary" onclick="loadPredictions()" style="padding: 8px 16px;">
+            <i class="fas fa-brain"></i> Generate Prediction
+        </button>
+    </div>
+    <div class="grid-2" style="padding: 20px;">
+        <div>
+            <h4 style="color: var(--text-secondary); font-size: 13px; margin-bottom: 15px;">
+                <i class="fas fa-hourglass-half"></i> NEXT HOUR PREDICTION
+            </h4>
+            <div id="nextHourPrediction" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                <div style="padding: 15px; background: var(--bg-input); border-radius: 10px; text-align: center;">
+                    <div style="font-size: 11px; color: var(--text-secondary);">NORTH</div>
+                    <div id="predNorth" style="font-size: 24px; font-weight: bold; color: #3498db;">--</div>
+                </div>
+                <div style="padding: 15px; background: var(--bg-input); border-radius: 10px; text-align: center;">
+                    <div style="font-size: 11px; color: var(--text-secondary);">EAST</div>
+                    <div id="predEast" style="font-size: 24px; font-weight: bold; color: #2ecc71;">--</div>
+                </div>
+                <div style="padding: 15px; background: var(--bg-input); border-radius: 10px; text-align: center;">
+                    <div style="font-size: 11px; color: var(--text-secondary);">SOUTH</div>
+                    <div id="predSouth" style="font-size: 24px; font-weight: bold; color: #e74c3c;">--</div>
+                </div>
+                <div style="padding: 15px; background: var(--bg-input); border-radius: 10px; text-align: center;">
+                    <div style="font-size: 11px; color: var(--text-secondary);">WEST</div>
+                    <div id="predWest" style="font-size: 24px; font-weight: bold; color: #f39c12;">--</div>
+                </div>
+            </div>
+            <div style="margin-top: 15px; text-align: center;">
+                <span style="color: var(--text-secondary); font-size: 12px;">Confidence: </span>
+                <span id="predConfidence" class="badge badge-primary">--</span>
+            </div>
+        </div>
+        <div>
+            <h4 style="color: var(--text-secondary); font-size: 13px; margin-bottom: 15px;">
+                <i class="fas fa-chart-line"></i> 24-HOUR FORECAST
+            </h4>
+            <div style="height: 200px; position: relative;">
+                <canvas id="predictionChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Weather & Export Section -->
+<div class="grid-2" style="margin-bottom: 25px;">
+    <!-- Weather Widget -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fas fa-cloud-sun"></i>
+                Weather Integration
+            </div>
+            <button class="btn btn-outline" onclick="loadWeather()" style="padding: 6px 12px; font-size: 12px;">
+                <i class="fas fa-sync"></i>
+            </button>
+        </div>
+        <div id="weatherWidget" style="padding: 20px; text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 10px;" id="weatherIcon">🌤️</div>
+            <div style="font-size: 32px; font-weight: bold;" id="weatherTemp">--°C</div>
+            <div style="color: var(--text-secondary);" id="weatherDesc">Loading...</div>
+            <div style="margin-top: 15px; display: flex; justify-content: center; gap: 20px; font-size: 13px;">
+                <span><i class="fas fa-tint"></i> <span id="weatherHumidity">--</span>%</span>
+                <span><i class="fas fa-wind"></i> <span id="weatherWind">--</span> m/s</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Data -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fas fa-file-export"></i>
+                Export Data
+            </div>
+        </div>
+        <div style="padding: 20px;">
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">
+                    Export Period
+                </label>
+                <select id="exportDays" style="width: 100%;">
+                    <option value="1">Last 24 Hours</option>
+                    <option value="7" selected>Last 7 Days</option>
+                    <option value="30">Last 30 Days</option>
+                    <option value="90">Last 90 Days</option>
+                </select>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">
+                    Data Type
+                </label>
+                <select id="exportType" style="width: 100%;">
+                    <option value="vehicles">Vehicle Counts</option>
+                    <option value="events">Detection Events</option>
+                    <option value="led_states">LED State Changes</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-success" onclick="exportCSV()" style="flex: 1;">
+                    <i class="fas fa-file-csv"></i> Export CSV
+                </button>
+                <button class="btn btn-primary" onclick="exportExcel()" style="flex: 1;">
+                    <i class="fas fa-file-excel"></i> Export Excel
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -121,27 +317,27 @@
 
 {% block extra_js %}
 <script>
-    let detectionChart = null;
+    let historyChart = null;
     let distributionChart = null;
-    let ledChart = null;
+    let dailyChart = null;
+    let ledPieChart = null;
+    let eventsChart = null;
     let allEvents = [];
-    let vehicleTotals = { NORTH: 0, EAST: 0, SOUTH: 0, WEST: 0 };
-    let startTime = Date.now();
-    let maxDataPoints = 30;
+    let currentHours = 6;  // Default time range
 
     // Initialize Charts
     function initCharts() {
-        // Detection Chart
-        const ctx1 = document.getElementById('detectionChart').getContext('2d');
-        detectionChart = new Chart(ctx1, {
+        // History Chart (from database)
+        const ctx1 = document.getElementById('historyChart').getContext('2d');
+        historyChart = new Chart(ctx1, {
             type: 'line',
             data: {
                 labels: [],
                 datasets: [
-                    { label: 'NORTH', data: [], borderColor: '#3498db', backgroundColor: 'rgba(52,152,219,0.1)', fill: true, tension: 0.4, borderWidth: 2 },
-                    { label: 'EAST', data: [], borderColor: '#2ecc71', backgroundColor: 'rgba(46,204,113,0.1)', fill: true, tension: 0.4, borderWidth: 2 },
-                    { label: 'SOUTH', data: [], borderColor: '#e74c3c', backgroundColor: 'rgba(231,76,60,0.1)', fill: true, tension: 0.4, borderWidth: 2 },
-                    { label: 'WEST', data: [], borderColor: '#f39c12', backgroundColor: 'rgba(243,156,18,0.1)', fill: true, tension: 0.4, borderWidth: 2 }
+                    { label: 'NORTH', data: [], borderColor: '#3498db', backgroundColor: 'rgba(52,152,219,0.1)', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 1 },
+                    { label: 'EAST', data: [], borderColor: '#2ecc71', backgroundColor: 'rgba(46,204,113,0.1)', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 1 },
+                    { label: 'SOUTH', data: [], borderColor: '#e74c3c', backgroundColor: 'rgba(231,76,60,0.1)', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 1 },
+                    { label: 'WEST', data: [], borderColor: '#f39c12', backgroundColor: 'rgba(243,156,18,0.1)', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 1 }
                 ]
             },
             options: {
@@ -152,7 +348,7 @@
                 },
                 scales: {
                     y: { beginAtZero: true, ticks: { color: '#a0aec0' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-                    x: { ticks: { color: '#a0aec0', maxRotation: 0, maxTicksLimit: 10 }, grid: { display: false } }
+                    x: { ticks: { color: '#a0aec0', maxRotation: 45, maxTicksLimit: 15 }, grid: { display: false } }
                 }
             }
         });
@@ -178,18 +374,63 @@
             }
         });
 
-        // LED Chart
-        const ctx3 = document.getElementById('ledChart').getContext('2d');
-        ledChart = new Chart(ctx3, {
+        // Daily Stats Chart
+        const ctx3 = document.getElementById('dailyChart').getContext('2d');
+        dailyChart = new Chart(ctx3, {
             type: 'bar',
             data: {
                 labels: [],
+                datasets: [
+                    { label: 'Vehicles', data: [], backgroundColor: '#667eea', borderRadius: 4 },
+                    { label: 'Pedestrians', data: [], backgroundColor: '#48bb78', borderRadius: 4 },
+                    { label: 'Light Cycles', data: [], backgroundColor: '#ecc94b', borderRadius: 4 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', labels: { color: '#a0aec0' } }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { color: '#a0aec0' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    x: { ticks: { color: '#a0aec0' }, grid: { display: false } }
+                }
+            }
+        });
+
+        // LED Pie Chart
+        const ctx4 = document.getElementById('ledPieChart').getContext('2d');
+        ledPieChart = new Chart(ctx4, {
+            type: 'pie',
+            data: {
+                labels: ['RED', 'YELLOW', 'GREEN', 'RED_YELLOW'],
                 datasets: [{
-                    label: 'LED State',
-                    data: [],
-                    backgroundColor: [],
-                    borderWidth: 0,
-                    barThickness: 8
+                    data: [0, 0, 0, 0],
+                    backgroundColor: ['#f56565', '#ecc94b', '#48bb78', '#ed8936'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right', labels: { color: '#a0aec0' } }
+                }
+            }
+        });
+
+        // Events by Type Chart
+        const ctx5 = document.getElementById('eventsChart').getContext('2d');
+        eventsChart = new Chart(ctx5, {
+            type: 'bar',
+            data: {
+                labels: ['CAR', 'PEDESTRIAN', 'LED_CHANGE', 'SYSTEM', 'EMERGENCY'],
+                datasets: [{
+                    label: 'Count',
+                    data: [0, 0, 0, 0, 0],
+                    backgroundColor: ['#3498db', '#48bb78', '#ecc94b', '#667eea', '#f56565'],
+                    borderRadius: 4
                 }]
             },
             options: {
@@ -198,90 +439,106 @@
                 indexAxis: 'y',
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { display: false },
-                    y: { ticks: { color: '#a0aec0', font: { size: 10 } }, grid: { display: false } }
+                    x: { beginAtZero: true, ticks: { color: '#a0aec0' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    y: { ticks: { color: '#a0aec0' }, grid: { display: false } }
                 }
             }
         });
     }
 
-    // Update data from server
-    function updateAnalytics() {
-        fetch('{% url "camera:traffic_status" %}')
+    // Load history data from database
+    function loadHistoryData(hours) {
+        if (hours > 0) {
+            currentHours = hours;
+            // Update button styles
+            document.querySelectorAll('[id^="btn-"]').forEach(btn => btn.className = 'btn btn-outline');
+            const activeBtn = document.getElementById(`btn-${hours}h`) || document.getElementById(`btn-${hours === 168 ? '7d' : hours + 'h'}`);
+            if (activeBtn) activeBtn.className = 'btn btn-primary';
+        }
+
+        // Load vehicle count history
+        fetch(`{% url "camera:vehicle_count_history" %}?hours=${currentHours}&limit=500`)
             .then(response => response.json())
             .then(data => {
-                const now = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                historyChart.data.labels = data.labels;
+                historyChart.data.datasets[0].data = data.north;
+                historyChart.data.datasets[1].data = data.east;
+                historyChart.data.datasets[2].data = data.south;
+                historyChart.data.datasets[3].data = data.west;
+                historyChart.update();
 
-                // Update detection chart
-                detectionChart.data.labels.push(now);
-                detectionChart.data.datasets[0].data.push(data.vehicle_counts.NORTH || 0);
-                detectionChart.data.datasets[1].data.push(data.vehicle_counts.EAST || 0);
-                detectionChart.data.datasets[2].data.push(data.vehicle_counts.SOUTH || 0);
-                detectionChart.data.datasets[3].data.push(data.vehicle_counts.WEST || 0);
-
-                // Limit data points
-                while (detectionChart.data.labels.length > maxDataPoints) {
-                    detectionChart.data.labels.shift();
-                    detectionChart.data.datasets.forEach(ds => ds.data.shift());
-                }
-                detectionChart.update('none');
-
-                // Update totals
-                vehicleTotals.NORTH += data.vehicle_counts.NORTH || 0;
-                vehicleTotals.EAST += data.vehicle_counts.EAST || 0;
-                vehicleTotals.SOUTH += data.vehicle_counts.SOUTH || 0;
-                vehicleTotals.WEST += data.vehicle_counts.WEST || 0;
-
-                // Update distribution chart
-                distributionChart.data.datasets[0].data = [
-                    vehicleTotals.NORTH,
-                    vehicleTotals.EAST,
-                    vehicleTotals.SOUTH,
-                    vehicleTotals.WEST
-                ];
-                distributionChart.update('none');
-
-                // Update stat cards
-                const total = vehicleTotals.NORTH + vehicleTotals.EAST + vehicleTotals.SOUTH + vehicleTotals.WEST;
-                document.getElementById('totalVehiclesToday').textContent = total;
-
-                // Update LED chart
-                const ledState = data.led_states.NORTH || 'RED';
-                const colorMap = { 'RED': '#f56565', 'YELLOW': '#ecc94b', 'GREEN': '#48bb78' };
-                ledChart.data.labels.push(now);
-                ledChart.data.datasets[0].data.push(1);
-                ledChart.data.datasets[0].backgroundColor.push(colorMap[ledState] || '#667eea');
+                // Update distribution chart with totals
+                const northTotal = data.north.reduce((a, b) => a + b, 0);
+                const eastTotal = data.east.reduce((a, b) => a + b, 0);
+                const southTotal = data.south.reduce((a, b) => a + b, 0);
+                const westTotal = data.west.reduce((a, b) => a + b, 0);
                 
-                while (ledChart.data.labels.length > 50) {
-                    ledChart.data.labels.shift();
-                    ledChart.data.datasets[0].data.shift();
-                    ledChart.data.datasets[0].backgroundColor.shift();
-                }
-                ledChart.update('none');
-
-                // Update uptime
-                const uptimeMs = Date.now() - startTime;
-                const hours = Math.floor(uptimeMs / 3600000);
-                const mins = Math.floor((uptimeMs % 3600000) / 60000);
-                document.getElementById('systemUptime').textContent = `${hours}h ${mins}m`;
+                distributionChart.data.datasets[0].data = [northTotal, eastTotal, southTotal, westTotal];
+                distributionChart.update();
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => console.error('Error loading history:', error));
+
+        // Load LED state distribution
+        fetch(`{% url "camera:led_change_history" %}?hours=${currentHours}`)
+            .then(response => response.json())
+            .then(data => {
+                const counts = data.state_counts;
+                ledPieChart.data.datasets[0].data = [
+                    counts.RED || 0,
+                    counts.YELLOW || 0,
+                    counts.GREEN || 0,
+                    counts.RED_YELLOW || 0
+                ];
+                ledPieChart.update();
+            })
+            .catch(error => console.error('Error loading LED history:', error));
     }
 
-    // Update event log
+    // Load daily stats
+    function loadDailyStats() {
+        fetch('{% url "camera:daily_stats" %}?days=7')
+            .then(response => response.json())
+            .then(data => {
+                dailyChart.data.labels = data.labels;
+                dailyChart.data.datasets[0].data = data.vehicles;
+                dailyChart.data.datasets[1].data = data.pedestrians;
+                dailyChart.data.datasets[2].data = data.cycles;
+                dailyChart.update();
+            })
+            .catch(error => console.error('Error loading daily stats:', error));
+    }
+
+    // Load analytics summary
+    function loadSummary() {
+        fetch('{% url "camera:analytics_summary" %}')
+            .then(response => response.json())
+            .then(data => {
+                // Update stat cards
+                document.getElementById('totalVehiclesToday').textContent = data.today.total_vehicles || 0;
+                document.getElementById('pedestrianRequests').textContent = data.today.pedestrian_requests || 0;
+                document.getElementById('lightCycles').textContent = data.today.light_cycles || 0;
+                document.getElementById('dbRecords').textContent = data.database_records.detection_events || 0;
+
+                // Update events chart
+                const events = data.events_by_type;
+                eventsChart.data.datasets[0].data = [
+                    events.CAR || 0,
+                    events.PEDESTRIAN || 0,
+                    events.LED_CHANGE || 0,
+                    events.SYSTEM || 0,
+                    events.EMERGENCY || 0
+                ];
+                eventsChart.update();
+            })
+            .catch(error => console.error('Error loading summary:', error));
+    }
+
+    // Update event log from database
     function updateEventLog() {
         fetch('{% url "camera:event_log" %}?limit=100')
             .then(response => response.json())
             .then(data => {
                 allEvents = data.events || [];
-                
-                // Update stats
-                const pedestrianEvents = allEvents.filter(e => e.type.toLowerCase() === 'pedestrian').length;
-                document.getElementById('pedestrianRequests').textContent = pedestrianEvents;
-                
-                const cycleEvents = allEvents.filter(e => e.type.toLowerCase() === 'transition').length;
-                document.getElementById('lightCycles').textContent = cycleEvents;
-
                 filterLogs();
             })
             .catch(error => console.error('Error:', error));
@@ -298,7 +555,7 @@
         }
 
         if (filteredEvents.length > 0) {
-            container.innerHTML = filteredEvents.reverse().map(event => {
+            container.innerHTML = filteredEvents.map(event => {
                 const iconClass = getEventIcon(event.type);
                 return `
                     <div class="log-entry ${event.type.toLowerCase()}">
@@ -324,7 +581,8 @@
             'transition': 'fa-exchange-alt',
             'emergency': 'fa-exclamation-triangle',
             'car': 'fa-car',
-            'led': 'fa-lightbulb'
+            'led': 'fa-lightbulb',
+            'led_change': 'fa-lightbulb'
         };
         return icons[type.toLowerCase()] || 'fa-info-circle';
     }
@@ -346,14 +604,262 @@
         URL.revokeObjectURL(url);
     }
 
+    // ========== Peak Hour Analysis ==========
+    let peakHourChart = null;
+    
+    function loadPeakHourAnalysis() {
+        fetch('{% url "camera:peak_hour_analysis" %}?days=7')
+            .then(response => response.json())
+            .then(data => {
+                // Update badges with peak hours
+                if (data.peak_hours && data.peak_hours.length >= 3) {
+                    document.getElementById('peakHour1').textContent = `${String(data.peak_hours[0].hour).padStart(2, '0')}:00 (${data.peak_hours[0].count})`;
+                    document.getElementById('peakHour2').textContent = `${String(data.peak_hours[1].hour).padStart(2, '0')}:00 (${data.peak_hours[1].count})`;
+                    document.getElementById('peakHour3').textContent = `${String(data.peak_hours[2].hour).padStart(2, '0')}:00 (${data.peak_hours[2].count})`;
+                }
+
+                // Create/update chart
+                const ctx = document.getElementById('peakHourChart').getContext('2d');
+                
+                if (peakHourChart) {
+                    peakHourChart.destroy();
+                }
+
+                const labels = data.hourly_data.map(h => `${String(h.hour).padStart(2, '0')}:00`);
+                const counts = data.hourly_data.map(h => h.count);
+                const maxCount = Math.max(...counts);
+
+                // Color bars based on intensity
+                const colors = counts.map(c => {
+                    const intensity = c / maxCount;
+                    if (intensity > 0.8) return '#e74c3c';
+                    if (intensity > 0.5) return '#f39c12';
+                    if (intensity > 0.2) return '#3498db';
+                    return '#2c3e50';
+                });
+
+                peakHourChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Vehicles',
+                            data: counts,
+                            backgroundColor: colors,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                ticks: { color: '#8b95a5' }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#8b95a5', maxRotation: 45 }
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(error => console.error('Error loading peak hours:', error));
+    }
+
+    // ========== Heatmap ==========
+    function loadHeatmap() {
+        fetch('{% url "camera:traffic_heatmap" %}?days=30')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('heatmapGrid');
+                const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                
+                // Create grid: 8 columns (day label + 24 hours header), 8 rows (header + 7 days)
+                container.style.gridTemplateColumns = '50px repeat(24, 1fr)';
+                container.style.gridTemplateRows = 'auto repeat(7, 30px)';
+                
+                let html = '<div></div>'; // Empty corner
+                
+                // Hour headers
+                for (let h = 0; h < 24; h++) {
+                    html += `<div style="text-align: center; font-size: 10px; color: var(--text-secondary); padding: 3px;">${String(h).padStart(2, '0')}</div>`;
+                }
+                
+                // Data rows
+                for (let d = 0; d < 7; d++) {
+                    html += `<div style="text-align: right; padding-right: 8px; font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; justify-content: flex-end;">${days[d]}</div>`;
+                    
+                    for (let h = 0; h < 24; h++) {
+                        const value = data.heatmap && data.heatmap[d] ? (data.heatmap[d][h] || 0) : 0;
+                        const normalized = data.max_value > 0 ? value / data.max_value : 0;
+                        
+                        // Color interpolation: dark blue -> blue -> red
+                        let color;
+                        if (normalized < 0.3) {
+                            color = `rgba(26, 26, 46, ${0.3 + normalized})`;
+                        } else if (normalized < 0.6) {
+                            color = `rgba(74, 105, 189, ${0.5 + normalized * 0.5})`;
+                        } else {
+                            color = `rgba(231, 76, 60, ${0.7 + normalized * 0.3})`;
+                        }
+                        
+                        html += `<div style="background: ${color}; border-radius: 3px; cursor: pointer;" title="${days[d]} ${String(h).padStart(2, '0')}:00 - ${value} vehicles"></div>`;
+                    }
+                }
+                
+                container.innerHTML = html;
+            })
+            .catch(error => console.error('Error loading heatmap:', error));
+    }
+
+    // ========== Traffic Prediction ==========
+    let predictionChart = null;
+
+    function loadPredictions() {
+        // Next hour prediction
+        fetch('{% url "camera:predict_next_hour" %}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.prediction) {
+                    document.getElementById('predNorth').textContent = data.prediction.north || 0;
+                    document.getElementById('predEast').textContent = data.prediction.east || 0;
+                    document.getElementById('predSouth').textContent = data.prediction.south || 0;
+                    document.getElementById('predWest').textContent = data.prediction.west || 0;
+                    document.getElementById('predConfidence').textContent = `${Math.round((data.prediction.confidence || 0) * 100)}%`;
+                }
+            })
+            .catch(error => console.error('Error loading next hour prediction:', error));
+
+        // Daily prediction
+        fetch('{% url "camera:predict_daily" %}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.predictions && data.predictions.length > 0) {
+                    const ctx = document.getElementById('predictionChart').getContext('2d');
+                    
+                    if (predictionChart) {
+                        predictionChart.destroy();
+                    }
+
+                    const labels = data.predictions.map(p => `${String(p.hour).padStart(2, '0')}:00`);
+                    const values = data.predictions.map(p => p.total);
+                    const confidences = data.predictions.map(p => p.confidence);
+
+                    predictionChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Predicted Vehicles',
+                                data: values,
+                                borderColor: '#9b59b6',
+                                backgroundColor: 'rgba(155, 89, 182, 0.1)',
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: 'rgba(255,255,255,0.05)' },
+                                    ticks: { color: '#8b95a5' }
+                                },
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { color: '#8b95a5', maxTicksLimit: 12 }
+                                }
+                            }
+                        }
+                    });
+                }
+            })
+            .catch(error => console.error('Error loading daily predictions:', error));
+    }
+
+    // ========== Weather Integration ==========
+    function loadWeather() {
+        fetch('{% url "camera:get_weather" %}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error && !data.demo_mode) {
+                    document.getElementById('weatherDesc').textContent = data.error || 'Weather data unavailable';
+                    return;
+                }
+                
+                // API returns data in 'weather' object
+                const weather = data.weather || data;
+                
+                // Update weather widget
+                document.getElementById('weatherTemp').textContent = `${Math.round(weather.temperature || 0)}°C`;
+                document.getElementById('weatherDesc').textContent = weather.condition || weather.description || 'Unknown';
+                document.getElementById('weatherHumidity').textContent = weather.humidity || '--';
+                document.getElementById('weatherWind').textContent = weather.wind_speed || '--';
+                
+                // Set weather icon based on condition
+                const condition = (weather.condition || '').toLowerCase();
+                let icon = '🌤️';
+                if (condition.includes('clear') || condition.includes('sun')) icon = '☀️';
+                else if (condition.includes('cloud')) icon = '☁️';
+                else if (condition.includes('rain') || condition.includes('drizzle')) icon = '🌧️';
+                else if (condition.includes('thunder') || condition.includes('storm')) icon = '⛈️';
+                else if (condition.includes('snow')) icon = '❄️';
+                else if (condition.includes('fog') || condition.includes('mist')) icon = '🌫️';
+                
+                document.getElementById('weatherIcon').textContent = icon;
+                
+                // Show demo mode indicator if applicable
+                if (data.demo_mode) {
+                    document.getElementById('weatherDesc').textContent += ' (Demo)';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading weather:', error);
+                document.getElementById('weatherDesc').textContent = 'Failed to load weather';
+            });
+    }
+
+    // ========== Export Functions ==========
+    function exportCSV() {
+        const days = document.getElementById('exportDays').value;
+        const type = document.getElementById('exportType').value;
+        window.location.href = `{% url "camera:export_csv" %}?days=${days}&type=${type}`;
+    }
+
+    function exportExcel() {
+        const days = document.getElementById('exportDays').value;
+        window.location.href = `{% url "camera:export_excel" %}?days=${days}`;
+    }
+
     // Initialize
     window.addEventListener('load', () => {
         initCharts();
-        updateAnalytics();
+        loadHistoryData(6);  // Load last 6 hours by default
+        loadDailyStats();
+        loadSummary();
         updateEventLog();
         
-        setInterval(updateAnalytics, 2000);
-        setInterval(updateEventLog, 5000);
+        // Load new features
+        loadPeakHourAnalysis();
+        loadHeatmap();
+        loadWeather();
+        
+        // Refresh data periodically
+        setInterval(() => loadHistoryData(0), 30000);  // Refresh every 30 seconds
+        setInterval(loadSummary, 30000);
+        setInterval(updateEventLog, 10000);
+        setInterval(loadWeather, 300000);  // Refresh weather every 5 minutes
     });
 </script>
 {% endblock %}

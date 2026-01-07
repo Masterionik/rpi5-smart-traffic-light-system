@@ -40,122 +40,166 @@
     </div>
 </div>
 
-<!-- Main Content Grid -->
+<!-- Camera Feeds Side by Side -->
 <div class="grid-2" style="margin-bottom: 25px;">
-    <!-- Video Feed -->
+    <!-- Primary Camera (RPi) -->
     <div class="card">
         <div class="card-header">
             <div class="card-title">
                 <i class="fas fa-video"></i>
-                Primary Camera (RPi Camera)
+                RPi Camera (Vehicle Detection)
             </div>
             <span class="badge badge-success" id="cameraBadge">
                 <i class="fas fa-circle"></i> Live
             </span>
         </div>
-        <div class="video-container">
+        <div class="video-container" style="min-height: 280px;">
             <div class="video-label">
                 <i class="fas fa-camera"></i> Camera Module 3
             </div>
             <img id="mainCamera" src="{% url 'camera:video_feed' %}" alt="Main Camera" 
-                 onerror="this.style.display='none'" onload="this.style.display='block'">
-            <div id="cameraPlaceholder" style="color: var(--text-secondary); display: none;">
+                 style="width: 100%; height: auto;"
+                 onerror="this.style.display='none'; document.getElementById('cameraPlaceholder').style.display='flex';" 
+                 onload="this.style.display='block'; document.getElementById('cameraPlaceholder').style.display='none';">
+            <div id="cameraPlaceholder" style="display: none; flex-direction: column; align-items: center; justify-content: center; min-height: 200px; color: var(--text-secondary);">
                 <i class="fas fa-video-slash" style="font-size: 48px;"></i>
                 <p style="margin-top: 15px;">Camera not available</p>
             </div>
         </div>
+        <!-- Direction counts under RPi camera -->
+        <div style="padding: 15px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+            <div class="direction-count">
+                <i class="fas fa-arrow-up"></i>
+                <span class="count" id="north-count">0</span>
+                <span class="label">NORTH</span>
+            </div>
+            <div class="direction-count">
+                <i class="fas fa-arrow-right"></i>
+                <span class="count" id="east-count">0</span>
+                <span class="label">EAST</span>
+            </div>
+            <div class="direction-count">
+                <i class="fas fa-arrow-down"></i>
+                <span class="count" id="south-count">0</span>
+                <span class="label">SOUTH</span>
+            </div>
+            <div class="direction-count">
+                <i class="fas fa-arrow-left"></i>
+                <span class="count" id="west-count">0</span>
+                <span class="label">WEST</span>
+            </div>
+        </div>
     </div>
 
-    <!-- Traffic Light LED Strip -->
+    <!-- DroidCam (Smartphone Camera) -->
     <div class="card">
         <div class="card-header">
             <div class="card-title">
-                <i class="fas fa-traffic-light"></i>
-                LED Traffic Light (8 LEDs)
+                <i class="fas fa-mobile-alt"></i>
+                DroidCam (Pedestrian Mode)
             </div>
-            <span class="badge" id="ledStateBadge" style="background: var(--danger);">RED</span>
+            <span class="badge" id="droidcamBadge" style="background: var(--danger);">
+                <i class="fas fa-circle"></i> Disconnected
+            </span>
         </div>
-        
-        <!-- LED Strip Visual - 8 LEDs: 3 RED, 2 YELLOW, 3 GREEN -->
-        <div style="padding: 20px;">
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
-                
-                <!-- LED Strip Representation -->
-                <div class="led-strip-container">
-                    <div class="led-strip-label">8-LED Traffic Light Strip</div>
-                    <div class="led-strip">
-                        <!-- RED Section (LEDs 0-2) -->
-                        <div class="led-segment red-segment">
-                            <div class="led" id="led-0"></div>
-                            <div class="led" id="led-1"></div>
-                            <div class="led" id="led-2"></div>
-                            <span class="segment-label">RED</span>
-                        </div>
-                        <!-- YELLOW Section (LEDs 3-4) -->
-                        <div class="led-segment yellow-segment">
-                            <div class="led" id="led-3"></div>
-                            <div class="led" id="led-4"></div>
-                            <span class="segment-label">YELLOW</span>
-                        </div>
-                        <!-- GREEN Section (LEDs 5-7) -->
-                        <div class="led-segment green-segment">
-                            <div class="led" id="led-5"></div>
-                            <div class="led" id="led-6"></div>
-                            <div class="led" id="led-7"></div>
-                            <span class="segment-label">GREEN</span>
-                        </div>
+        <div class="video-container" style="min-height: 280px; position: relative;">
+            <div class="video-label" style="background: var(--warning);">
+                <i class="fas fa-walking"></i> Pedestrian Detection
+            </div>
+            <img id="droidcamFeed" alt="DroidCam" 
+                 style="width: 100%; height: auto; display: none;"
+                 onerror="this.style.display='none'; document.getElementById('droidcamPlaceholder').style.display='flex';" 
+                 onload="this.style.display='block'; document.getElementById('droidcamPlaceholder').style.display='none';">
+            <div id="droidcamPlaceholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 200px; color: var(--text-secondary);">
+                <i class="fas fa-mobile-alt" style="font-size: 48px;"></i>
+                <p style="margin-top: 15px;">DroidCam not connected</p>
+                <p style="font-size: 12px;">Enter URL below to connect</p>
+            </div>
+        </div>
+        <!-- DroidCam Controls -->
+        <div style="padding: 15px;">
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <input type="text" id="droidcamUrl" placeholder="http://192.168.0.x:4747/video" 
+                       style="flex: 1; padding: 10px; border-radius: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary);">
+                <button class="btn btn-primary" onclick="connectDroidCam()">
+                    <i class="fas fa-plug"></i> Connect
+                </button>
+            </div>
+            <!-- Pedestrian Phone Mode Toggle -->
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: var(--bg-input); border-radius: 10px;">
+                <div>
+                    <div style="font-weight: 600; color: var(--text-primary);">
+                        <i class="fas fa-walking" style="color: var(--warning);"></i> Pedestrian Phone Mode
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-secondary);">
+                        When DroidCam sees cars → Auto RED for cars (pedestrian crosses)
                     </div>
                 </div>
-
-                <!-- Detection Status -->
-                <div style="display: flex; gap: 30px; justify-content: center; flex-wrap: wrap;">
-                    <div style="text-align: center;">
-                        <div style="font-size: 48px; font-weight: 700; color: var(--text-primary);" id="vehicleCountDisplay">0</div>
-                        <div style="color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">Vehicles Detected</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 48px; font-weight: 700;" id="ledStateDisplay">🔴</div>
-                        <div style="color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">Current State</div>
-                    </div>
-                </div>
-
-                <!-- Direction Vehicle Counts -->
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; width: 100%;">
-                    <div class="direction-count">
-                        <i class="fas fa-arrow-up"></i>
-                        <span class="count" id="north-count">0</span>
-                        <span class="label">NORTH</span>
-                    </div>
-                    <div class="direction-count">
-                        <i class="fas fa-arrow-right"></i>
-                        <span class="count" id="east-count">0</span>
-                        <span class="label">EAST</span>
-                    </div>
-                    <div class="direction-count">
-                        <i class="fas fa-arrow-down"></i>
-                        <span class="count" id="south-count">0</span>
-                        <span class="label">SOUTH</span>
-                    </div>
-                    <div class="direction-count">
-                        <i class="fas fa-arrow-left"></i>
-                        <span class="count" id="west-count">0</span>
-                        <span class="label">WEST</span>
-                    </div>
+                <label class="switch">
+                    <input type="checkbox" id="pedestrianModeToggle" onchange="togglePedestrianMode()">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <div id="pedestrianModeStatus" style="margin-top: 10px; padding: 10px; background: var(--bg-card); border-radius: 8px; display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: var(--text-secondary);">Cars Detected:</span>
+                    <span id="droidcamCarCount" style="font-size: 24px; font-weight: bold; color: var(--warning);">0</span>
                 </div>
             </div>
         </div>
-        
-        <!-- How It Works -->
-        <div style="padding: 0 20px 20px 20px;">
-            <div style="background: var(--bg-input); border-radius: 12px; padding: 15px;">
-                <h4 style="margin-bottom: 10px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">
-                    <i class="fas fa-info-circle"></i> How It Works
-                </h4>
-                <ul style="margin: 0; padding-left: 20px; color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
-                    <li><strong style="color: var(--success);">Vehicle Detected</strong> → GREEN section lights up (LEDs 5-7)</li>
-                    <li><strong style="color: var(--warning);">Transitioning</strong> → YELLOW section lights up (LEDs 3-4)</li>
-                    <li><strong style="color: var(--danger);">No Vehicle</strong> → RED section lights up (LEDs 0-2)</li>
-                </ul>
+    </div>
+</div>
+
+<!-- LED Traffic Light (Full Width) -->
+<div class="card" style="margin-bottom: 25px;">
+    <div class="card-header">
+        <div class="card-title">
+            <i class="fas fa-traffic-light"></i>
+            LED Traffic Light (8 LEDs)
+        </div>
+        <span class="badge" id="ledStateBadge" style="background: var(--danger);">RED</span>
+    </div>
+    
+    <div style="padding: 20px;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
+            
+            <!-- LED Strip Representation -->
+            <div class="led-strip-container">
+                <div class="led-strip-label">8-LED Traffic Light Strip</div>
+                <div class="led-strip">
+                    <!-- RED Section (LEDs 0-2) -->
+                    <div class="led-segment red-segment">
+                        <div class="led" id="led-0"></div>
+                        <div class="led" id="led-1"></div>
+                        <div class="led" id="led-2"></div>
+                        <span class="segment-label">RED</span>
+                    </div>
+                    <!-- YELLOW Section (LEDs 3-4) -->
+                    <div class="led-segment yellow-segment">
+                        <div class="led" id="led-3"></div>
+                        <div class="led" id="led-4"></div>
+                        <span class="segment-label">YELLOW</span>
+                    </div>
+                    <!-- GREEN Section (LEDs 5-7) -->
+                    <div class="led-segment green-segment">
+                        <div class="led" id="led-5"></div>
+                        <div class="led" id="led-6"></div>
+                        <div class="led" id="led-7"></div>
+                        <span class="segment-label">GREEN</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detection Status -->
+            <div style="display: flex; gap: 30px; justify-content: center; flex-wrap: wrap;">
+                <div style="text-align: center;">
+                    <div style="font-size: 48px; font-weight: 700; color: var(--text-primary);" id="vehicleCountDisplay">0</div>
+                    <div style="color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">Vehicles Detected</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 48px; font-weight: 700;" id="ledStateDisplay">🔴</div>
+                    <div style="color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">Current State</div>
+                </div>
             </div>
         </div>
     </div>
@@ -600,15 +644,184 @@
         .catch(error => console.error('Error:', error));
     }
 
+    // ========== DroidCam Functions ==========
+    let droidcamConnected = false;
+    let pedestrianModeEnabled = false;
+    let pedestrianModeInterval = null;
+
+    function connectDroidCam() {
+        const url = document.getElementById('droidcamUrl').value.trim();
+        if (!url) {
+            alert('Please enter DroidCam URL (e.g., http://192.168.0.x:4747/video)');
+            return;
+        }
+
+        // Show connecting state
+        const badge = document.getElementById('droidcamBadge');
+        badge.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Connecting...';
+        badge.style.background = 'var(--warning)';
+
+        fetch('{% url "camera:start_droidcam" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: url })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                droidcamConnected = true;
+                badge.innerHTML = '<i class="fas fa-circle"></i> Connected';
+                badge.style.background = 'var(--success)';
+                
+                // Show the feed
+                document.getElementById('droidcamFeed').src = '{% url "camera:droidcam_feed" %}';
+                document.getElementById('droidcamFeed').style.display = 'block';
+                document.getElementById('droidcamPlaceholder').style.display = 'none';
+                
+                // Update Quick Info
+                document.getElementById('droidcamStatus').className = 'badge badge-success';
+                document.getElementById('droidcamStatus').textContent = 'Connected';
+            } else {
+                badge.innerHTML = '<i class="fas fa-times"></i> Failed';
+                badge.style.background = 'var(--danger)';
+                alert('Failed to connect: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            badge.innerHTML = '<i class="fas fa-times"></i> Error';
+            badge.style.background = 'var(--danger)';
+            console.error('DroidCam connection error:', error);
+        });
+    }
+
+    function togglePedestrianMode() {
+        pedestrianModeEnabled = document.getElementById('pedestrianModeToggle').checked;
+        const statusDiv = document.getElementById('pedestrianModeStatus');
+        
+        if (pedestrianModeEnabled) {
+            statusDiv.style.display = 'block';
+            
+            // Start polling DroidCam for car detection
+            if (pedestrianModeInterval) clearInterval(pedestrianModeInterval);
+            pedestrianModeInterval = setInterval(checkDroidCamCars, 1000);
+            
+            console.log('Pedestrian Phone Mode enabled - will trigger RED for cars when phone detects vehicles');
+        } else {
+            statusDiv.style.display = 'none';
+            
+            // Stop polling
+            if (pedestrianModeInterval) {
+                clearInterval(pedestrianModeInterval);
+                pedestrianModeInterval = null;
+            }
+        }
+    }
+
+    function checkDroidCamCars() {
+        if (!pedestrianModeEnabled || !droidcamConnected) return;
+
+        fetch('{% url "camera:droidcam_pedestrian_mode" %}')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('droidcamCarCount').textContent = data.cars_detected || 0;
+                
+                // If cars detected and mode is active, it will trigger RED automatically on backend
+                if (data.triggered) {
+                    console.log('Pedestrian crossing triggered - RED for cars');
+                }
+            })
+            .catch(error => console.error('Error checking DroidCam:', error));
+    }
+
+    function updateDroidCamStatus() {
+        fetch('{% url "camera:droidcam_status" %}')
+            .then(response => response.json())
+            .then(data => {
+                droidcamConnected = data.connected || data.running;
+                
+                const badge = document.getElementById('droidcamBadge');
+                const statusBadge = document.getElementById('droidcamStatus');
+                
+                if (droidcamConnected) {
+                    badge.innerHTML = '<i class="fas fa-circle"></i> Connected';
+                    badge.style.background = 'var(--success)';
+                    statusBadge.className = 'badge badge-success';
+                    statusBadge.textContent = 'Connected';
+                } else {
+                    badge.innerHTML = '<i class="fas fa-circle"></i> Disconnected';
+                    badge.style.background = 'var(--danger)';
+                    statusBadge.className = 'badge badge-danger';
+                    statusBadge.textContent = 'Disconnected';
+                }
+            })
+            .catch(error => console.error('Error checking DroidCam status:', error));
+    }
+
     // Initialize
     window.addEventListener('load', () => {
         initChart();
         updateTrafficStatus();
         updateEventLog();
+        updateDroidCamStatus();
         
         // Update every 2 seconds
         setInterval(updateTrafficStatus, 2000);
         setInterval(updateEventLog, 5000);
+        setInterval(updateDroidCamStatus, 5000);
     });
 </script>
+
+<style>
+/* Toggle Switch */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 26px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--bg-input);
+    transition: .3s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .3s;
+}
+
+input:checked + .slider {
+    background-color: var(--success);
+}
+
+input:checked + .slider:before {
+    transform: translateX(24px);
+}
+
+.slider.round {
+    border-radius: 26px;
+}
+
+.slider.round:before {
+    border-radius: 50%;
+}
+</style>
 {% endblock %}
