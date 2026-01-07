@@ -32,6 +32,13 @@ urlpatterns = [
     # Pedestrian crossing
     path('pedestrian/request/', views.request_pedestrian_crossing, name='request_pedestrian_crossing'),
     
+    # Settings backup/restore
+    path('settings/backup/', views.backup_settings, name='backup_settings'),
+    path('settings/restore/', views.restore_settings, name='restore_settings'),
+    
+    # Zone configuration
+    path('zones/configure/', views.configure_zones, name='configure_zones'),
+    
     # DroidCam (smartphone camera)
     path('droidcam/start/', views.start_droidcam, name='start_droidcam'),
     path('droidcam/feed/', views.droidcam_feed, name='droidcam_feed'),

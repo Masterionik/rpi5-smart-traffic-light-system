@@ -279,9 +279,12 @@ def gen_frames():
             with camera.lock:
                 camera.car_count = sum(direction_counts.values())
             
-            # Update traffic controller with vehicle counts
+            # Get emergency vehicle info
+            emergency_info = camera.detector.get_emergency_info()
+            
+            # Update traffic controller with vehicle counts and emergency info
             if traffic_controller:
-                traffic_controller.update_vehicle_counts(direction_counts)
+                traffic_controller.update_vehicle_counts(direction_counts, emergency_info)
         else:
             # No detection, reset counts
             if traffic_controller:
@@ -663,5 +666,189 @@ def shutdown_camera(request):
         droidcam.stop()
     
     return JsonResponse({'status': 'System shutdown complete'})
+
+
+@csrf_exempt
+def backup_settings(request):
+    """
+    Backup current system settings to JSON
+    Returns a downloadable JSON file
+    """
+    import os
+    from datetime import datetime
+    
+    settings = {
+        'version': '1.0',
+        'backup_date': datetime.now().isoformat(),
+        'traffic_controller': {},
+        'detection': {},
+        'led_strip': {},
+        'zones': {}
+    }
+    
+    # Traffic controller settings
+    if traffic_controller:
+        settings['traffic_controller'] = {
+            'mode': traffic_controller.mode,
+            'T_MIN': traffic_controller.T_MIN,
+            'T_MAX': traffic_controller.T_MAX,
+            'T_PER_VEHICLE': traffic_controller.T_PER_VEHICLE,
+            'T_YELLOW': traffic_controller.T_YELLOW,
+            'T_PEDESTRIAN': traffic_controller.T_PEDESTRIAN,
+            'SIMPLE_GREEN_DURATION': traffic_controller.SIMPLE_GREEN_DURATION,
+            'SIMPLE_YELLOW_DURATION': traffic_controller.SIMPLE_YELLOW_DURATION,
+            'EMERGENCY_PRIORITY': traffic_controller.EMERGENCY_PRIORITY,
+            'EMERGENCY_GREEN_TIME': traffic_controller.EMERGENCY_GREEN_TIME,
+        }
+    
+    # Detection settings
+    if camera and camera.detector:
+        settings['detection'] = {
+            'enabled': camera.detector_enabled,
+            'confidence_threshold': camera.detector.confidence_threshold,
+        }
+    
+    # LED strip settings
+    if led_strip:
+        settings['led_strip'] = {
+            'num_pixels': led_strip.num_pixels,
+            'brightness': led_strip.brightness,
+            'current_state': led_strip.get_state() if hasattr(led_strip, 'get_state') else 'UNKNOWN',
+        }
+    
+    # Zone configurations
+    if camera and camera.detector:
+        settings['zones'] = camera.detector.roi_zones
+    
+    return JsonResponse(settings)
+
+
+@csrf_exempt
+def restore_settings(request):
+    """
+    Restore system settings from JSON backup
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST request required'}, status=400)
+    
+    try:
+        data = json.loads(request.body)
+        
+        restored = []
+        
+        # Restore traffic controller settings
+        if traffic_controller and 'traffic_controller' in data:
+            tc = data['traffic_controller']
+            if 'mode' in tc:
+                traffic_controller.set_mode(tc['mode'])
+                restored.append('mode')
+            if 'T_MIN' in tc:
+                traffic_controller.T_MIN = tc['T_MIN']
+                restored.append('T_MIN')
+            if 'T_MAX' in tc:
+                traffic_controller.T_MAX = tc['T_MAX']
+                restored.append('T_MAX')
+            if 'T_PER_VEHICLE' in tc:
+                traffic_controller.T_PER_VEHICLE = tc['T_PER_VEHICLE']
+                restored.append('T_PER_VEHICLE')
+            if 'SIMPLE_GREEN_DURATION' in tc:
+                traffic_controller.SIMPLE_GREEN_DURATION = tc['SIMPLE_GREEN_DURATION']
+                restored.append('SIMPLE_GREEN_DURATION')
+            if 'SIMPLE_YELLOW_DURATION' in tc:
+                traffic_controller.SIMPLE_YELLOW_DURATION = tc['SIMPLE_YELLOW_DURATION']
+                restored.append('SIMPLE_YELLOW_DURATION')
+            if 'EMERGENCY_PRIORITY' in tc:
+                traffic_controller.EMERGENCY_PRIORITY = tc['EMERGENCY_PRIORITY']
+                restored.append('EMERGENCY_PRIORITY')
+            if 'EMERGENCY_GREEN_TIME' in tc:
+                traffic_controller.EMERGENCY_GREEN_TIME = tc['EMERGENCY_GREEN_TIME']
+                restored.append('EMERGENCY_GREEN_TIME')
+        
+        # Restore detection settings
+        if camera and camera.detector and 'detection' in data:
+            det = data['detection']
+            if 'enabled' in det:
+                camera.detector_enabled = det['enabled']
+                restored.append('detection_enabled')
+            if 'confidence_threshold' in det:
+                camera.detector.confidence_threshold = det['confidence_threshold']
+                restored.append('confidence_threshold')
+        
+        # Restore LED settings
+        if led_strip and 'led_strip' in data:
+            ls = data['led_strip']
+            if 'brightness' in ls:
+                led_strip.brightness = ls['brightness']
+                restored.append('brightness')
+        
+        # Restore zone configurations
+        if camera and camera.detector and 'zones' in data:
+            for direction, coords in data['zones'].items():
+                if direction in camera.detector.roi_zones:
+                    camera.detector.roi_zones[direction] = tuple(coords) if isinstance(coords, list) else coords
+                    restored.append(f'zone_{direction}')
+        
+        logger.info(f"Settings restored: {restored}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Restored {len(restored)} settings',
+            'restored': restored
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        logger.error(f"Restore settings error: {e}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@csrf_exempt
+def configure_zones(request):
+    """
+    Configure detection zones for single camera multi-direction counting
+    """
+    if request.method == 'GET':
+        # Return current zone configuration
+        if camera and camera.detector:
+            return JsonResponse({
+                'zones': camera.detector.roi_zones,
+                'supported_directions': ['NORTH', 'EAST', 'SOUTH', 'WEST']
+            })
+        return JsonResponse({'error': 'Detector not available'}, status=503)
+    
+    elif request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            
+            if not camera or not camera.detector:
+                return JsonResponse({'error': 'Detector not available'}, status=503)
+            
+            # Update zones
+            for direction, zone in data.items():
+                if direction in camera.detector.roi_zones:
+                    if isinstance(zone, dict):
+                        camera.detector.roi_zones[direction] = (
+                            zone.get('x1', 0),
+                            zone.get('y1', 0),
+                            zone.get('x2', 1),
+                            zone.get('y2', 1)
+                        )
+                    elif isinstance(zone, (list, tuple)) and len(zone) == 4:
+                        camera.detector.roi_zones[direction] = tuple(zone)
+            
+            logger.info(f"Zones updated: {camera.detector.roi_zones}")
+            
+            return JsonResponse({
+                'success': True,
+                'zones': camera.detector.roi_zones
+            })
+            
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
 
 
