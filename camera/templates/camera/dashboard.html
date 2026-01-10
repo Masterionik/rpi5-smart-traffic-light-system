@@ -125,6 +125,28 @@
                     <i class="fas fa-plug"></i> Connect
                 </button>
             </div>
+            
+            <!-- Camera Transform Controls -->
+            <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
+                <button class="btn btn-sm" id="droidcamFlipH" onclick="toggleDroidCamFlip('horizontal')" 
+                        style="padding: 8px 12px; background: var(--bg-input); border: 1px solid var(--border-color);" 
+                        title="Flip Horizontal">
+                    <i class="fas fa-arrows-alt-h"></i> Flip H
+                </button>
+                <button class="btn btn-sm" id="droidcamFlipV" onclick="toggleDroidCamFlip('vertical')" 
+                        style="padding: 8px 12px; background: var(--bg-input); border: 1px solid var(--border-color);" 
+                        title="Flip Vertical">
+                    <i class="fas fa-arrows-alt-v"></i> Flip V
+                </button>
+                <select id="droidcamRotation" onchange="setDroidCamRotation(this.value)" 
+                        style="padding: 8px 12px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary);">
+                    <option value="0">0°</option>
+                    <option value="90">90°</option>
+                    <option value="180">180°</option>
+                    <option value="270">270°</option>
+                </select>
+            </div>
+            
             <!-- Pedestrian Phone Mode Toggle -->
             <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: var(--bg-input); border-radius: 10px;">
                 <div>
@@ -648,6 +670,124 @@
     let droidcamConnected = false;
     let pedestrianModeEnabled = false;
     let pedestrianModeInterval = null;
+    let droidcamSettings = {
+        flipHorizontal: false,
+        flipVertical: false,
+        rotation: 0
+    };
+
+    // Load saved DroidCam settings on page load
+    function loadDroidCamSettings() {
+        fetch('{% url "camera:get_droidcam_settings" %}')
+            .then(response => response.json())
+            .then(data => {
+                // Load URL
+                if (data.droidcam_url) {
+                    document.getElementById('droidcamUrl').value = data.droidcam_url;
+                }
+                
+                // Load transform settings
+                droidcamSettings.flipHorizontal = data.droidcam_flip_horizontal || false;
+                droidcamSettings.flipVertical = data.droidcam_flip_vertical || false;
+                droidcamSettings.rotation = data.droidcam_rotation || 0;
+                
+                // Update UI buttons
+                updateFlipButtons();
+                document.getElementById('droidcamRotation').value = droidcamSettings.rotation;
+                
+                // Apply transforms to feed
+                applyDroidCamTransforms();
+                
+                // Load pedestrian mode state
+                if (data.pedestrian_phone_mode_enabled) {
+                    document.getElementById('pedestrianModeToggle').checked = true;
+                    togglePedestrianMode();
+                }
+                
+                // Auto-reconnect if URL was saved and droidcam was enabled
+                if (data.droidcam_url && data.droidcam_enabled) {
+                    console.log('Auto-reconnecting to saved DroidCam URL...');
+                    connectDroidCam();
+                }
+            })
+            .catch(error => console.error('Error loading DroidCam settings:', error));
+    }
+
+    function saveDroidCamSettings() {
+        const url = document.getElementById('droidcamUrl').value.trim();
+        fetch('{% url "camera:save_droidcam_settings" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                droidcam_url: url,
+                droidcam_enabled: droidcamConnected,
+                droidcam_flip_horizontal: droidcamSettings.flipHorizontal,
+                droidcam_flip_vertical: droidcamSettings.flipVertical,
+                droidcam_rotation: droidcamSettings.rotation,
+                pedestrian_phone_mode_enabled: pedestrianModeEnabled
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('DroidCam settings saved:', data);
+        })
+        .catch(error => console.error('Error saving DroidCam settings:', error));
+    }
+
+    function toggleDroidCamFlip(direction) {
+        if (direction === 'horizontal') {
+            droidcamSettings.flipHorizontal = !droidcamSettings.flipHorizontal;
+        } else {
+            droidcamSettings.flipVertical = !droidcamSettings.flipVertical;
+        }
+        updateFlipButtons();
+        applyDroidCamTransforms();
+        saveDroidCamSettings();
+    }
+
+    function setDroidCamRotation(value) {
+        droidcamSettings.rotation = parseInt(value);
+        applyDroidCamTransforms();
+        saveDroidCamSettings();
+    }
+
+    function updateFlipButtons() {
+        const btnH = document.getElementById('droidcamFlipH');
+        const btnV = document.getElementById('droidcamFlipV');
+        
+        if (droidcamSettings.flipHorizontal) {
+            btnH.style.background = 'var(--primary)';
+            btnH.style.color = 'white';
+        } else {
+            btnH.style.background = 'var(--bg-input)';
+            btnH.style.color = 'var(--text-primary)';
+        }
+        
+        if (droidcamSettings.flipVertical) {
+            btnV.style.background = 'var(--primary)';
+            btnV.style.color = 'white';
+        } else {
+            btnV.style.background = 'var(--bg-input)';
+            btnV.style.color = 'var(--text-primary)';
+        }
+    }
+
+    function applyDroidCamTransforms() {
+        const feed = document.getElementById('droidcamFeed');
+        let transform = '';
+        
+        if (droidcamSettings.flipHorizontal) {
+            transform += 'scaleX(-1) ';
+        }
+        if (droidcamSettings.flipVertical) {
+            transform += 'scaleY(-1) ';
+        }
+        if (droidcamSettings.rotation !== 0) {
+            transform += `rotate(${droidcamSettings.rotation}deg) `;
+        }
+        
+        feed.style.transform = transform.trim();
+    }
 
     function connectDroidCam() {
         const url = document.getElementById('droidcamUrl').value.trim();
@@ -678,10 +818,17 @@
                 document.getElementById('droidcamFeed').style.display = 'block';
                 document.getElementById('droidcamPlaceholder').style.display = 'none';
                 
+                // Apply saved transforms
+                applyDroidCamTransforms();
+                
+                // Save settings (including URL)
+                saveDroidCamSettings();
+                
                 // Update Quick Info
                 document.getElementById('droidcamStatus').className = 'badge badge-success';
                 document.getElementById('droidcamStatus').textContent = 'Connected';
             } else {
+                droidcamConnected = false;
                 badge.innerHTML = '<i class="fas fa-times"></i> Failed';
                 badge.style.background = 'var(--danger)';
                 alert('Failed to connect: ' + (data.message || 'Unknown error'));
@@ -715,6 +862,9 @@
                 pedestrianModeInterval = null;
             }
         }
+        
+        // Save pedestrian mode state
+        saveDroidCamSettings();
     }
 
     function checkDroidCamCars() {
@@ -737,6 +887,7 @@
         fetch('{% url "camera:droidcam_status" %}')
             .then(response => response.json())
             .then(data => {
+                const wasConnected = droidcamConnected;
                 droidcamConnected = data.connected || data.running;
                 
                 const badge = document.getElementById('droidcamBadge');
@@ -747,6 +898,14 @@
                     badge.style.background = 'var(--success)';
                     statusBadge.className = 'badge badge-success';
                     statusBadge.textContent = 'Connected';
+                    
+                    // Show feed if just connected
+                    if (!wasConnected) {
+                        document.getElementById('droidcamFeed').src = '{% url "camera:droidcam_feed" %}';
+                        document.getElementById('droidcamFeed').style.display = 'block';
+                        document.getElementById('droidcamPlaceholder').style.display = 'none';
+                        applyDroidCamTransforms();
+                    }
                 } else {
                     badge.innerHTML = '<i class="fas fa-circle"></i> Disconnected';
                     badge.style.background = 'var(--danger)';
@@ -762,6 +921,7 @@
         initChart();
         updateTrafficStatus();
         updateEventLog();
+        loadDroidCamSettings();  // Load saved settings first
         updateDroidCamStatus();
         
         // Update every 2 seconds

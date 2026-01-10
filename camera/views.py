@@ -497,6 +497,43 @@ def traffic_status(request):
     return JsonResponse(status)
 
 
+def traffic_detailed_status(request):
+    """Get detailed traffic status with waiting times and priority scores"""
+    if not traffic_controller:
+        return JsonResponse({'error': 'Traffic controller not available'}, status=503)
+    
+    detailed = traffic_controller.get_detailed_status()
+    return JsonResponse(detailed)
+
+
+def get_algorithm_settings(request):
+    """Get current algorithm settings"""
+    if not traffic_controller:
+        return JsonResponse({'error': 'Traffic controller not available'}, status=503)
+    
+    settings = traffic_controller.get_algorithm_settings()
+    return JsonResponse({'settings': settings})
+
+
+@csrf_exempt
+def update_algorithm_settings(request):
+    """Update algorithm settings"""
+    if not traffic_controller:
+        return JsonResponse({'error': 'Traffic controller not available'}, status=503)
+    
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST request required'}, status=400)
+    
+    try:
+        data = json.loads(request.body)
+        result = traffic_controller.update_algorithm_settings(data)
+        return JsonResponse(result)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
 def event_log(request):
     """Get event log"""
     if not traffic_controller:
@@ -1797,3 +1834,69 @@ def predict_daily(request):
         'model': 'daily_pattern_v1',
         'generated_at': now.isoformat()
     })
+
+
+# ============= DroidCam Settings API =============
+
+def get_droidcam_settings(request):
+    """Get saved DroidCam settings"""
+    from detection.models import SystemSettings
+    
+    settings = SystemSettings.get_settings()
+    
+    return JsonResponse({
+        'droidcam_url': settings.droidcam_url,
+        'droidcam_enabled': settings.droidcam_enabled,
+        'droidcam_flip_horizontal': settings.droidcam_flip_horizontal,
+        'droidcam_flip_vertical': settings.droidcam_flip_vertical,
+        'droidcam_rotation': settings.droidcam_rotation,
+        'rpi_camera_flip_horizontal': settings.rpi_camera_flip_horizontal,
+        'rpi_camera_flip_vertical': settings.rpi_camera_flip_vertical,
+        'rpi_camera_rotation': settings.rpi_camera_rotation,
+        'pedestrian_phone_mode_enabled': settings.pedestrian_phone_mode_enabled,
+    })
+
+
+@csrf_exempt
+def save_droidcam_settings(request):
+    """Save DroidCam settings"""
+    from detection.models import SystemSettings
+    
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=400)
+    
+    try:
+        data = json.loads(request.body)
+        settings = SystemSettings.get_settings()
+        
+        # Update fields if provided
+        if 'droidcam_url' in data:
+            settings.droidcam_url = data['droidcam_url']
+        if 'droidcam_enabled' in data:
+            settings.droidcam_enabled = data['droidcam_enabled']
+        if 'droidcam_flip_horizontal' in data:
+            settings.droidcam_flip_horizontal = data['droidcam_flip_horizontal']
+        if 'droidcam_flip_vertical' in data:
+            settings.droidcam_flip_vertical = data['droidcam_flip_vertical']
+        if 'droidcam_rotation' in data:
+            settings.droidcam_rotation = int(data['droidcam_rotation'])
+        if 'rpi_camera_flip_horizontal' in data:
+            settings.rpi_camera_flip_horizontal = data['rpi_camera_flip_horizontal']
+        if 'rpi_camera_flip_vertical' in data:
+            settings.rpi_camera_flip_vertical = data['rpi_camera_flip_vertical']
+        if 'rpi_camera_rotation' in data:
+            settings.rpi_camera_rotation = int(data['rpi_camera_rotation'])
+        if 'pedestrian_phone_mode_enabled' in data:
+            settings.pedestrian_phone_mode_enabled = data['pedestrian_phone_mode_enabled']
+        
+        settings.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Settings saved successfully'
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

@@ -25,6 +25,11 @@ urlpatterns = [
     path('traffic/manual/', views.manual_control_light, name='manual_control_light'),
     path('traffic/emergency/', views.emergency_stop, name='emergency_stop'),
     path('traffic/events/', views.event_log, name='event_log'),
+    path('traffic/detailed-status/', views.traffic_detailed_status, name='traffic_detailed_status'),
+    
+    # Algorithm settings
+    path('algorithm/settings/', views.get_algorithm_settings, name='get_algorithm_settings'),
+    path('algorithm/update/', views.update_algorithm_settings, name='update_algorithm_settings'),
     
     # LED strip control
     path('led/test/', views.test_led, name='test_led'),
@@ -44,6 +49,8 @@ urlpatterns = [
     path('droidcam/feed/', views.droidcam_feed, name='droidcam_feed'),
     path('droidcam/status/', views.droidcam_status, name='droidcam_status'),
     path('droidcam/pedestrian-mode/', views.droidcam_pedestrian_mode, name='droidcam_pedestrian_mode'),
+    path('droidcam/settings/', views.get_droidcam_settings, name='get_droidcam_settings'),
+    path('droidcam/settings/save/', views.save_droidcam_settings, name='save_droidcam_settings'),
     
     # Analytics API endpoints (for graphs from database)
     path('analytics/vehicle-history/', views.vehicle_count_history, name='vehicle_count_history'),

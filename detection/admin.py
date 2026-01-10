@@ -1,7 +1,8 @@
 from django.contrib import admin
 from .models import (
     DetectionEvent, VehicleCount, TrafficLightState, SystemStats,
-    HourlyStats, CameraSource, CameraVehicleCount, WeatherData, TrafficPrediction
+    HourlyStats, CameraSource, CameraVehicleCount, WeatherData, TrafficPrediction,
+    SystemSettings
 )
 
 
@@ -70,3 +71,18 @@ class TrafficPredictionAdmin(admin.ModelAdmin):
     list_display = ['prediction_for', 'predicted_total', 'confidence', 'model_version', 'created_at']
     list_filter = ['model_version', 'prediction_for']
     ordering = ['-prediction_for']
+
+
+@admin.register(SystemSettings)
+class SystemSettingsAdmin(admin.ModelAdmin):
+    list_display = ['id', 'droidcam_enabled', 'droidcam_url', 'pedestrian_phone_mode_enabled', 'updated_at']
+    readonly_fields = ['updated_at']
+    
+    def has_add_permission(self, request):
+        # Only allow one SystemSettings instance (singleton)
+        if SystemSettings.objects.exists():
+            return False
+        return super().has_add_permission(request)
+    
+    def has_delete_permission(self, request, obj=None):
+        return False

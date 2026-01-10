@@ -183,3 +183,50 @@ class TrafficPrediction(models.Model):
     def __str__(self):
         return f"Prediction for {self.prediction_for}: {self.predicted_total} vehicles"
 
+
+class SystemSettings(models.Model):
+    """
+    Persistent system settings stored in database
+    Only one record should exist (singleton pattern)
+    """
+    # DroidCam settings
+    droidcam_url = models.CharField(max_length=255, blank=True, default='')
+    droidcam_enabled = models.BooleanField(default=False)
+    droidcam_flip_horizontal = models.BooleanField(default=False)
+    droidcam_flip_vertical = models.BooleanField(default=False)
+    droidcam_rotation = models.IntegerField(default=0, choices=[
+        (0, '0° (Normal)'),
+        (90, '90° Clockwise'),
+        (180, '180° Upside Down'),
+        (270, '270° Counter-clockwise'),
+    ])
+    
+    # RPi Camera settings
+    rpi_camera_flip_horizontal = models.BooleanField(default=False)
+    rpi_camera_flip_vertical = models.BooleanField(default=False)
+    rpi_camera_rotation = models.IntegerField(default=180)  # Default upside down for typical mount
+    
+    # Pedestrian Phone Mode
+    pedestrian_phone_mode_enabled = models.BooleanField(default=False)
+    
+    # Last updated
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "System Settings"
+        verbose_name_plural = "System Settings"
+    
+    def __str__(self):
+        return f"System Settings (updated: {self.updated_at})"
+    
+    @classmethod
+    def get_settings(cls):
+        """Get or create singleton settings instance"""
+        settings, created = cls.objects.get_or_create(pk=1)
+        return settings
+    
+    def save(self, *args, **kwargs):
+        """Ensure only one instance exists"""
+        self.pk = 1
+        super().save(*args, **kwargs)
+
