@@ -49,6 +49,8 @@ urlpatterns = [
     path('droidcam/feed/', views.droidcam_feed, name='droidcam_feed'),
     path('droidcam/status/', views.droidcam_status, name='droidcam_status'),
     path('droidcam/pedestrian-mode/', views.droidcam_pedestrian_mode, name='droidcam_pedestrian_mode'),
+    path('droidcam/settings/', views.get_droidcam_settings, name='get_droidcam_settings'),
+    path('droidcam/settings/save/', views.save_droidcam_settings, name='save_droidcam_settings'),
     
     # Analytics API endpoints (for graphs from database)
     path('analytics/vehicle-history/', views.vehicle_count_history, name='vehicle_count_history'),
